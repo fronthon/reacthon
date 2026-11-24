@@ -1,0 +1,44 @@
+{
+    "name": "reacthon",
+    "version": "0.1.0",
+    "description": "React components in Python",
+    "author": "Florent Gallaire <fgallaire@gmail.com>",
+    "license": "MIT",
+    "keywords": [
+        "python",
+        "react",
+        "brython",
+        "vite-plugin"
+    ],
+    "type": "module",
+    "main": "./src/reacthon.js",
+    "exports": {
+        ".": "./src/reacthon.js",
+        "./bridge": "./src/bridge.js",
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "src"
+    ],
+    "scripts": {
+        "dev": "vite demo",
+        "build": "vite build demo",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "brycomp": "^0.6.0",
+        "bryntime": "^2.0.0",
+        "bryvend": "~3.14.31",
+        "htm": "^3.1.1"
+    },
+    "peerDependencies": {
+        "react": "^19.0.0"
+    },
+    "devDependencies": {
+        "jsdom": "^29.1.1",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "vite": "^8.3.8",
+        "vitest": "^4.1.12"
+    }
+}
