@@ -4,7 +4,7 @@
 // names, published as the Python module `reacthon`.
 import * as React from 'react';
 import htm from 'htm';
-import { registerModule, pyHandler, pyExport, pyArg, plainData, pyStr, pyType, isDict, NONE } from 'bryntime';
+import { registerModule, pyHandler, pyExport, pyArg, plainData, pyStr, pyType, isDict, track, unsubscribe, watchable, NONE } from 'bryntime';
 
 export { withNamespace, pyError, jsCall } from 'bryntime';
 
@@ -171,10 +171,46 @@ function element(template) {
     return Array.isArray(made) ? React.createElement(React.Fragment, null, ...made) : made;
 }
 
+// A container held in a state is the same object after `items.append(x)`, and
+// React compares a dependency by identity: each change Python makes to it, or
+// to anything inside it, moves its version, which a dependency is compared
+// with as well.
+const VERSIONS = new WeakMap();
+
+const moved = (value) => VERSIONS.set(value, (VERSIONS.get(value) ?? 0) + 1);
+const version = (value) => (value !== null && typeof value === 'object' ? (VERSIONS.get(value) ?? 0) : 0);
+
 // React compares a dependency with `Object.is`, and Brython builds a new float
-// at each computation: a number is compared as its value.
+// at each computation: a number is compared as its value. Two slots per
+// dependency, so that the list keeps its length from one render to the next.
 const dependencies = (deps) =>
-    deps === undefined || deps === NONE ? undefined : [...deps].map((one) => (one?.ob_type === _b_.float ? one.value : one));
+    deps === undefined || deps === NONE
+        ? undefined
+        : [...deps].flatMap((one) => (one?.ob_type === _b_.float ? [one.value, 0] : [one, version(one)]));
+
+const increment = (count) => count + 1;
+
+// What a state holds is watched once it is on the page, and the component
+// renders again at every change Python makes to it in place: `items.append(x)`,
+// `todo["done"] = True`, `point.x += 1`, as a JavaScript reader of MobX's or
+// Valtio's state sees its writes. Off when the state holds another value, or
+// the component leaves.
+function useWatched(value) {
+    const [, rerender] = React.useReducer(increment, 0);
+
+    React.useEffect(() => {
+        if (!watchable(value)) return undefined;
+
+        const owner = [];
+
+        track(value, () => {
+            moved(value);
+            rerender();
+        }, owner);
+
+        return () => unsubscribe(owner);
+    }, [value]);
+}
 
 const SETTERS = new WeakMap();
 
@@ -199,6 +235,7 @@ const hooks = {
         const [initial] = hookArgs('use_state', args, ['initial']);
         const [value, set] = React.useState(() => (pyCallable(initial) ? call(initial) : initial ?? NONE));
 
+        useWatched(value);
         return $B.fast_tuple([value, setterOf(set)]);
     },
 
