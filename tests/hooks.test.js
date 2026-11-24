@@ -65,7 +65,6 @@ describe('hooks', () => {
             console.error = quiet;
         }
 
-        expect(caught.message).toMatch(/IndexError/);
-        expect(caught.message).toMatch(/list index out of range/);
+        expect(caught.message).toBe('IndexError: list index out of range (Broken() — tests/fixtures/Hooks.py:62)');
     });
 });
