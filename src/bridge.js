@@ -192,6 +192,31 @@ function h(type, props, ...children) {
 
 const html = htm.bind(h);
 
+// Which interpolations stand inside a quoted attribute, `class="row {kind}"`,
+// where htm joins the text with JavaScript's `+`: there each is written as an
+// f-string writes it.
+function quotedSlots(strings) {
+    const quoted = [];
+    let inTag = false;
+    let quote = null;
+
+    strings.forEach((text, at) => {
+        for (const c of text) {
+            if (quote !== null) {
+                if (c === quote) quote = null;
+            } else if (inTag) {
+                if (c === '"' || c === "'") quote = c;
+                else if (c === '>') inTag = false;
+            } else if (c === '<') {
+                inTag = true;
+            }
+        }
+        if (at < strings.length - 1) quoted.push(quote !== null);
+    });
+
+    return quoted;
+}
+
 // htm parses a template once and keeps it by the identity of its strings,
 // which Python builds again at each evaluation: the same text is handed the
 // same array.
@@ -202,7 +227,7 @@ function statics(strings) {
     let held = STRINGS.get(key);
 
     if (held === undefined) {
-        held = Object.freeze([...strings]);
+        held = { strings: Object.freeze([...strings]), quoted: quotedSlots(strings) };
         STRINGS.set(key, held);
     }
 
@@ -221,7 +246,9 @@ function interpolated(one) {
 }
 
 function element(template) {
-    const made = html(statics(template.strings), ...template.interpolations.map(interpolated));
+    const { strings, quoted } = statics(template.strings);
+    const values = template.interpolations.map((one, at) => (quoted[at] ? pyStr(interpolated(one)) : interpolated(one)));
+    const made = html(strings, ...values);
 
     return Array.isArray(made) ? React.createElement(React.Fragment, null, ...made) : made;
 }
