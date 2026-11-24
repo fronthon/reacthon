@@ -46,6 +46,11 @@ export function reacthon(options = {}) {
         name: 'reacthon',
         enforce: 'pre',
 
+        // Vite's dependency scanner reads JavaScript, not the `.py` that import
+        // the bridge: named here, it is bundled before the first page, which
+        // otherwise loads once and again when the scanner meets it late.
+        config: () => ({ optimizeDeps: { include: ['reacthon/bridge'] } }),
+
         resolveId(id, importer) {
             if (id.endsWith('.py') && (id.startsWith('.') || id.startsWith('/'))) {
                 const found = importer && id.startsWith('.') ? resolve(dirname(importer), id) : resolve(id);
