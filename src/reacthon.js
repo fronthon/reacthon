@@ -3,8 +3,12 @@
 // renders. Nothing is translated while the page loads.
 import { relative, resolve, dirname } from 'node:path';
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { compile } from './compile.js';
+
+// `import reacthon` is the package's own module, wherever the importer stands.
+const OWN = { reacthon: fileURLToPath(new URL('./reacthon.py', import.meta.url)) };
 
 export function reacthon(options = {}) {
     // Mirrors PYTHONPATH: where `import cart` looks after the importer's own folder.
@@ -29,9 +33,11 @@ export function reacthon(options = {}) {
         names
             .flatMap(
                 (one) =>
-                    [fromDirectory, ...searchPath]
+                    OWN[one] ??
+                    ([fromDirectory, ...searchPath]
                         .map((directory) => resolve(directory, `${one.replace(/\./g, '/')}.py`))
-                        .find((candidate) => existsSync(candidate)) || []
+                        .find((candidate) => existsSync(candidate)) ||
+                        [])
             )
             .map((path) => `import ${JSON.stringify(path)};`)
             .join('\n');

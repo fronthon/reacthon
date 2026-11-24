@@ -4,7 +4,21 @@
 // names, published as the Python module `reacthon`.
 import * as React from 'react';
 import htm from 'htm';
-import { registerModule, pyHandler, pyExport, pyArg, plainData, pyStr, pyType, isDict, track, unsubscribe, watchable, NONE } from 'bryntime';
+import {
+    registerModule,
+    pyHandler,
+    pyExport,
+    pyData,
+    pyError,
+    plainData,
+    pyStr,
+    pyType,
+    isDict,
+    track,
+    unsubscribe,
+    watchable,
+    NONE
+} from 'bryntime';
 
 export { withNamespace, pyError, jsCall } from 'bryntime';
 
@@ -68,22 +82,35 @@ function child(value) {
 }
 
 // A Python function in a tag's place is a React component: one per function,
-// so React keeps its state from one render to the next.
+// so React keeps its state from one render to the next. What a t-string hands
+// it is Python's and stays itself, a list the very list and a setter the very
+// setter; what a JavaScript parent hands it is copied in, an array as a list
+// and an object as a dict, as Bryntime copies JavaScript's data into Python.
 const COMPONENTS = new WeakMap();
+const FROM_PYTHON = '__reacthon_python';
 
 function component(fn) {
     let made = COMPONENTS.get(fn);
 
     if (made === undefined) {
+        const name = fn.$function_infos?.[1] ?? fn.name;
+        const where = `${name}() — ${fn.$function_infos?.[3] ?? 'reacthon'}`;
+
         made = function (props) {
             const keywords = {};
+            const python = props[FROM_PYTHON] === true;
 
-            for (const [key, value] of Object.entries(props)) keywords[key] = pyArg(value);
+            for (const [key, value] of Object.entries(props)) {
+                if (key === FROM_PYTHON) continue;
+                keywords[key] = python || key === 'children' || isElement(value) ? (value ?? NONE) : pyData(value);
+            }
 
-            return child(call(fn, [], keywords));
+            try {
+                return child(call(fn, [], keywords));
+            } catch (error) {
+                throw pyError(error, where);
+            }
         };
-
-        const name = fn.$function_infos?.[1] ?? fn.name;
 
         Object.defineProperty(made, 'name', { value: name });
         made.displayName = name;
@@ -94,6 +121,28 @@ function component(fn) {
 }
 
 const DOM_NAMES = { class: 'className', for: 'htmlFor' };
+const CONTEXT = Symbol.for('react.context');
+
+// `use_ref()`'s object, the class `reacthon.py` declares, read once the module
+// has run.
+const refClass = () => $B.imported.reacthon?.Ref;
+const isRef = (value) => refClass() !== undefined && _b_.isinstance(value, refClass()) === true;
+
+// An element named by `ref={box}` is set on `box.current`, and None once it
+// leaves the page: one setter per ref, so React does not detach it at each
+// render.
+const REF_SETTERS = new WeakMap();
+
+function refSetter(ref) {
+    let made = REF_SETTERS.get(ref);
+
+    if (made === undefined) {
+        made = (node) => void $B.$setattr1(ref, 'current', node ?? NONE);
+        REF_SETTERS.set(ref, made);
+    }
+
+    return made;
+}
 
 // A prop of an element of the page crosses into JavaScript: a callable as a
 // handler that hands Python its event, a container as a plain copy, None as
@@ -104,7 +153,8 @@ function domProps(props) {
     for (const [key, value] of Object.entries(props)) {
         const name = DOM_NAMES[key] ?? key;
 
-        if (pyCallable(value) && !isElement(value)) out[name] = pyHandler(value);
+        if (key === 'ref' && isRef(value)) out.ref = refSetter(value);
+        else if (pyCallable(value) && !isElement(value)) out[name] = pyHandler(value);
         else if (value === NONE) out[name] = undefined;
         else out[name] = plainData(value);
     }
@@ -125,8 +175,11 @@ function jsProps(props) {
 function h(type, props, ...children) {
     const kids = children.map(child);
 
-    if (isPyFunction(type)) return React.createElement(component(type), props, ...kids);
+    if (isPyFunction(type)) return React.createElement(component(type), { ...props, [FROM_PYTHON]: true }, ...kids);
     if (typeof type === 'string') return React.createElement(type, props === null ? null : domProps(props), ...kids);
+
+    // A context's value is Python's, read back by `use_context`.
+    if (type?.$$typeof === CONTEXT) return React.createElement(type, props, ...kids);
 
     // What an import from JavaScript made of a component is an adapter for
     // Python's calls; React is handed the component itself.
@@ -265,12 +318,66 @@ const hooks = {
         return React.useCallback(fn, dependencies(deps));
     },
 
+    use_reducer(...args) {
+        const [reducer, initial, init] = hookArgs('use_reducer', args, ['reducer', 'initial', 'init']);
+        const [state, dispatch] = React.useReducer(
+            (current, action) => call(reducer, [current, action]),
+            initial ?? NONE,
+            (given) => (init === undefined || init === NONE ? given : call(init, [given]))
+        );
+
+        useWatched(state);
+        return $B.fast_tuple([state, dispatcherOf(dispatch)]);
+    },
+
+    use_ref(...args) {
+        const [initial] = hookArgs('use_ref', args, ['initial']);
+        const held = React.useRef(null);
+
+        if (held.current === null) held.current = call(refClass(), [initial ?? NONE]);
+        return held.current;
+    },
+
+    // A context's value is watched as a state's is: what Python changes in it
+    // renders again each component that reads it.
+    use_context(...args) {
+        const [context] = hookArgs('use_context', args, ['context']);
+        const value = React.useContext(context);
+
+        useWatched(value);
+        return value;
+    },
+
+    create_context(...args) {
+        const [initial] = hookArgs('create_context', args, ['default']);
+
+        return React.createContext(initial ?? NONE);
+    },
+
     use_id() {
         return React.useId();
     }
 };
 
-registerModule('reacthon', { ...hooks });
+const DISPATCHERS = new WeakMap();
+
+function dispatcherOf(dispatch) {
+    let made = DISPATCHERS.get(dispatch);
+
+    if (made === undefined) {
+        made = (action) => {
+            dispatch(action);
+            return NONE;
+        };
+        DISPATCHERS.set(dispatch, made);
+    }
+
+    return made;
+}
+
+// The hooks' own module, which `reacthon.py` imports and publishes under
+// `reacthon` beside what Python writes better itself.
+registerModule('_reacthon', { ...hooks });
 
 // A module's own namespace, published under its Python name before its body
 // runs, so that another module's `import` finds it.
