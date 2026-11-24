@@ -10,4 +10,5 @@ def Values(price=3.5, missing=None, flag=False):
         <p class="dict">{ {"a": 1} }</p>
         <p class="big">{2 ** 64}</p>
         <p class="when">{flag and t"<b>on</b>"}</p>
+        <input value={21.0} style={ {"opacity": 0.5} } />
     """

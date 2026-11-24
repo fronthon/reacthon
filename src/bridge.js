@@ -156,6 +156,8 @@ function domProps(props) {
         if (key === 'ref' && isRef(value)) out.ref = refSetter(value);
         else if (pyCallable(value) && !isElement(value)) out[name] = pyHandler(value);
         else if (value === NONE) out[name] = undefined;
+        // An attribute is text, and a float's is Python's: `value={21.0}` is "21.0".
+        else if (value?.ob_type === _b_.float) out[name] = pyStr(value);
         else out[name] = plainData(value);
     }
 
@@ -382,7 +384,7 @@ registerModule('_reacthon', { ...hooks });
 // A module's own namespace, published under its Python name before its body
 // runs, so that another module's `import` finds it.
 export function moduleNamespace(name) {
-    const namespace = {};
+    const namespace = { js: globalThis };
 
     registerModule(name, namespace);
     return namespace;

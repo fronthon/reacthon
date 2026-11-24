@@ -46,6 +46,8 @@ export function compile(text, source) {
         name: source.replace(/\W/g, '_'),
         source,
         named,
+        // `js`, JavaScript's globals, which every module reads by that name.
+        jsNames: ['js'],
         sourceContent: text
     });
     const { root, table, module, map, imported, jsImports, jsImported } = compiled;

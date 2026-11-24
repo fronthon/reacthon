@@ -51,6 +51,11 @@ describe('components', () => {
         expect(text('dict')).toBe("{'a': 1}");
         expect(text('big')).toBe('18446744073709551616');
         expect(text('when')).toBe('');
+
+        const input = page.container.querySelector('input');
+
+        expect(input.value).toBe('21.0');
+        expect(input.style.opacity).toBe('0.5');
     });
 
     it('renders a JavaScript component, calls a sibling module, and takes a callback back', async () => {

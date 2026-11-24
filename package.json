@@ -21,8 +21,8 @@
         "src"
     ],
     "scripts": {
-        "dev": "vite demo",
-        "build": "vite build demo",
+        "dev": "vite demos",
+        "build": "vite build demos",
         "test": "vitest run"
     },
     "dependencies": {
