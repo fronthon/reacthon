@@ -1,4 +1,4 @@
-from reacthon import use_state, use_ref
+from reacthon import use_ref
 
 
 def Todo(todo, on_remove):
@@ -17,19 +17,24 @@ def Todo(todo, on_remove):
 
 
 def Todos():
-    todos, _ = use_state(lambda: [
+    todos = [
         {"id": 1, "text": "Write a component in Python", "done": True},
         {"id": 2, "text": "Mutate a list in place", "done": False},
-    ])
-    draft, set_draft = use_state("")
+    ]
+    draft = ""
     field = use_ref()
 
+    def edit(event):
+        nonlocal draft
+        draft = event.target.value
+
     def add(event):
+        nonlocal draft
         event.preventDefault()
         text = draft.strip()
         if text:
             todos.append({"id": max((todo["id"] for todo in todos), default=0) + 1, "text": text, "done": False})
-            set_draft("")
+            draft = ""
         field.current.focus()
 
     def remover(todo):
@@ -39,8 +44,7 @@ def Todos():
 
     return t"""
         <form onSubmit={add}>
-            <input ref={field} value={draft} placeholder="What next?"
-                   onChange={(lambda event: set_draft(event.target.value))} />
+            <input ref={field} value={draft} placeholder="What next?" onChange={edit} />
             <button>Add</button>
         </form>
         <ul class="todos">

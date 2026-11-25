@@ -7,24 +7,23 @@
 </div>
 
 ```python
-from reacthon import use_state
-
-
 def Counter(start=0):
-    count, set_count = use_state(start)
+    count = start
 
     def increment(event):
-        set_count(count + 1)
+        nonlocal count
+        count += 1
 
     return t"<button onClick={increment}>clicked {count} times</button>"
 ```
 
 A component is a Python function, its markup a
 [t-string](https://peps.python.org/pep-0750/), Python 3.14's own template
-literal, and its hooks React's, under their Python names. The function is
-compiled to JavaScript at build time and handed to React itself: it is a React
-component, which React renders, reconciles and shows in its DevTools, beside
-any component of npm. The browser receives only JavaScript.
+literal, and its state the names its handlers rebind, as Python writes it:
+`nonlocal`. React's hooks are there too, under their Python names. The function
+is compiled to JavaScript at build time and handed to React itself: it is a
+React component, which React renders, reconciles and shows in its DevTools,
+beside any component of npm. The browser receives only JavaScript.
 
 ## Why
 
@@ -106,6 +105,55 @@ def TodoList(todos):
 A lambda inside an interpolation takes parentheses, as Python requires in any
 f-string or t-string: `onChange={(lambda event: set_text(event.target.value))}`.
 
+## State
+
+```python
+def TodoList():
+    todos = []
+    draft = ""
+
+    def edit(event):
+        nonlocal draft
+        draft = event.target.value
+
+    def add(event):
+        nonlocal draft
+        todos.append(draft)
+        draft = ""
+
+    left = len(todos)
+
+    return t"""
+        <input value={draft} onChange={edit} /><button onClick={add}>add</button>
+        <p>{left} to do</p>
+    """
+```
+
+React calls a component again at each render, so its names start over. A name
+that a nested function rebinds with `nonlocal`, or changes in place when the
+component made its value, `todos = []` then `todos.append(…)`, is the
+component's state: it keeps its value from one render to the next, and the
+component renders again when a handler rebinds it or changes what it holds.
+Everything else is computed again at each render, which is what React means by
+a value derived from state: `left` here.
+
+Python already says which names are state: a handler cannot rebind a name of
+the component without `nonlocal`. It is the `global` of a Svelthon module, one
+scope down.
+
+- **A handler reads the state of now**, not the state of the render that made
+  it: a timer started at the first render counts with `seconds += 1`, where
+  React's `setSeconds(seconds + 1)` reads 0 for ever.
+- **A name bound from a prop keeps its first value**, as `useState(prop)` does:
+  `count = start`.
+- **A function the render calls itself is part of the render**: what it
+  rebinds or changes is computed again, an accumulator as much as a value.
+- **A name bound otherwise holds what something else keeps**, and is left as it
+  is: `items = rows`, an alias of a prop, or `theme, set_theme = use_state(…)`.
+- **What cannot be kept is refused at its line** when the site is built: a state
+  bound twice or inside a block, a prop rebound, a state a function of the render
+  rebinds, a `return` before the state is made.
+
 ## Hooks
 
 ```python
@@ -131,7 +179,7 @@ order at every render.
 
 ```python
 def Basket():
-    items, set_items = use_state(["apple"])
+    items = ["apple"]
 
     def add(event):
         items.append("pear")  # renders again
@@ -141,12 +189,12 @@ def Basket():
 
 React compares a state by identity, so in JavaScript a list must be copied to be
 seen changed. Python changes its containers in place, and Reacthon follows what
-it changes, as MobX and Valtio follow a JavaScript state: what a state holds, a
-list, a dict, an instance, and anything inside it, renders its component again
-when Python changes it, `items.append(x)`, `todo["done"] = True`,
-`point.x += 1`, from that component or from a child it handed it to. A
-dependency of `use_memo`, `use_effect` or `use_callback` moves with it. The
-setter works as React's, for a new value.
+it changes: what a state holds, a name's or a hook's, a list, a dict, an
+instance, and anything inside it, renders its component again when Python
+changes it, `items.append(x)`, `todo["done"] = True`, `point.x += 1`, from
+that component or from a child it handed it to. A dependency of `use_memo`,
+`use_effect` or `use_callback` moves with it. `use_state`'s setter works as
+React's, for a new value.
 
 A context's value is followed the same way, so a dict handed down a context is a
 store its readers render again from.
@@ -166,8 +214,13 @@ __js__ = {"./Stars.js": ["Stars"]}
 
 
 def Rating():
-    stars, set_stars = use_state(3)
-    return t"<{Stars} value={stars} onRate={set_stars} />"
+    stars = 3
+
+    def rate(value):
+        nonlocal stars
+        stars = value
+
+    return t"<{Stars} value={stars} onRate={rate} />"
 ```
 
 A JavaScript component is rendered as itself, its props crossing as Bryntime
@@ -192,6 +245,10 @@ This is a prototype.
   [htm](https://github.com/developit/htm), and kept for the next renders; the
   build could compile it to `createElement` calls, and refuse a bad tag at its
   line.
+- **The state is read off the source**: a list a handler changes through
+  another function, `helper(items)`, is not seen changed, and a copy of a prop a
+  handler changes in place, `items = list(initial)`, is computed again at each
+  render; `use_state(lambda: list(initial))` keeps it.
 - **No Fast Refresh**: an edited `.py` reloads the page, its state lost.
 - **No server rendering** yet.
 - **A JavaScript component wrapped in `React.memo`** is handed a list changed in

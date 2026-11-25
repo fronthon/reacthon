@@ -15,7 +15,9 @@ import {
     pyType,
     isDict,
     track,
+    trackEach,
     unsubscribe,
+    pyGetattr,
     watchable,
     NONE
 } from 'bryntime';
@@ -250,7 +252,9 @@ function element(template) {
     const values = template.interpolations.map((one, at) => (quoted[at] ? pyStr(interpolated(one)) : interpolated(one)));
     const made = html(strings, ...values);
 
-    return Array.isArray(made) ? React.createElement(React.Fragment, null, ...made) : made;
+    // A template that is only an interpolation, `t"{rows}"`, is handed back as
+    // its value, which no `h` has made a child yet.
+    return Array.isArray(made) ? React.createElement(React.Fragment, null, ...made.map(child)) : child(made);
 }
 
 // A container held in a state is the same object after `items.append(x)`, and
@@ -292,6 +296,62 @@ function useWatched(value) {
 
         return () => unsubscribe(owner);
     }, [value]);
+}
+
+// `_reacthon_cells(names)`, which the compiler has a component with a state
+// call before its first cell (`state.js`): one object for the life of the
+// component, `reacthon._Cells`, which renders it again when a cell is written
+// anew, and when Python changes in place what a cell holds.
+const cellsClass = () => $B.imported.reacthon?._Cells;
+
+function cells(names) {
+    const [, rerender] = React.useReducer(increment, 0);
+    const held = React.useRef(null);
+
+    if (held.current === null) {
+        const bumps = new Map();
+        const made = { owner: [], bumps };
+
+        made.bumpOf = (name) => {
+            let bump = bumps.get(name);
+
+            if (bump === undefined) {
+                bump = () => {
+                    moved(bump.held);
+                    rerender();
+                };
+                bumps.set(name, bump);
+            }
+
+            return bump;
+        };
+        made.holder = call(cellsClass(), [rerender]);
+        held.current = made;
+    }
+
+    const own = held.current;
+
+    // Read once the render has given each cell its value, the first render's
+    // included: what a cell holds now is followed, what it held before is let
+    // go.
+    React.useEffect(() => {
+        for (const name of names) {
+            const value = pyGetattr(own.holder, name, NONE);
+            const bump = own.bumpOf(name);
+
+            if (bump.held !== value) track(value, bump, own.owner);
+        }
+    });
+    React.useEffect(
+        () => () => {
+            unsubscribe(own.owner);
+            own.owner = [];
+            for (const bump of own.bumps.values()) bump.held = undefined;
+        },
+        []
+    );
+
+    return own.holder;
 }
 
 const SETTERS = new WeakMap();
@@ -411,7 +471,7 @@ registerModule('_reacthon', { ...hooks });
 // A module's own namespace, published under its Python name before its body
 // runs, so that another module's `import` finds it.
 export function moduleNamespace(name) {
-    const namespace = { js: globalThis };
+    const namespace = { js: globalThis, _reacthon_cells: cells };
 
     registerModule(name, namespace);
     return namespace;

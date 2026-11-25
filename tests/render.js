@@ -17,6 +17,7 @@ export async function render(type, props = null) {
         text: () => container.textContent,
         html: () => container.innerHTML,
         click: (selector) => act(() => container.querySelector(selector).click()),
+        rerender: (next) => act(() => root.render(createElement(type, next))),
         unmount: () => act(() => root.unmount())
     };
 }

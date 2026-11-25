@@ -4,6 +4,8 @@
 // components and whose other names JavaScript imports as they are.
 import { compile as compileCommon, declaredExports, jsImportLine, JS_RESERVED } from 'brycomp';
 
+import { withState, CELLS } from './state.js';
+
 const HOST = {
     name: 'reacthon',
     bridge: 'reacthon/bridge',
@@ -42,14 +44,23 @@ function topLevelNames(body) {
 
 export function compile(text, source) {
     const named = pythonModuleName(source);
-    const compiled = compileCommon(HOST, text, {
+    const options = {
         name: source.replace(/\W/g, '_'),
         source,
         named,
-        // `js`, JavaScript's globals, which every module reads by that name.
-        jsNames: ['js'],
+        // `js`, JavaScript's globals, which every module reads by that name,
+        // and the hook a component's state is kept by.
+        jsNames: ['js', CELLS],
         sourceContent: text
-    });
+    };
+    let compiled = compileCommon(HOST, text, options);
+
+    // Read on the author's text, and compiled again with the state made cells:
+    // the same lines, so the source map and the errors keep their place.
+    const stated = withState(HOST, text, compiled.table, compiled.root._ast, source);
+
+    if (stated !== null) compiled = compileCommon(HOST, stated, options);
+
     const { root, table, module, map, imported, jsImports, jsImported } = compiled;
 
     const declaration = declaredExports(HOST, root._ast, table, source, 0, compiled.src);
@@ -70,5 +81,7 @@ export function compile(text, source) {
         `export default __reacthon_ns;`
     ];
 
-    return { code: `${module}\n${tail.join('\n')}`, map, imports: imported };
+    // The cells are the `reacthon` module's, loaded first even where the
+    // source imports nothing of it.
+    return { code: `${module}\n${tail.join('\n')}`, map, imports: stated === null ? imported : [...imported, 'reacthon'] };
 }
