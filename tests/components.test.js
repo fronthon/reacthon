@@ -63,6 +63,7 @@ describe('components', () => {
 
         expect(page.container.querySelector('.badge').textContent).toBe('items: 2 [true 2]');
         expect(page.container.querySelector('.badge').className).toBe('badge wide');
+        expect(page.container.querySelector('.badge').style.color).toBe('red');
         expect(page.container.querySelector('.total').textContent).toBe('36.0');
 
         await page.click('.badge');

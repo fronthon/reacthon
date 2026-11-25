@@ -12,7 +12,7 @@ def Shop(prices=(10, 20)):
 
     return t"""
         <div>
-            <{Badge} class="wide" label="items" count={len(prices)} items={list(prices)} onPick={pick} />
+            <{Badge} class="wide" style={ {"color": "red"} } label="items" count={len(prices)} items={list(prices)} onPick={pick} />
             <p class="total">{total(prices)}</p>
             <p class="picked">{picked}</p>
         </div>

@@ -195,11 +195,13 @@ const renamed = (props) => Object.fromEntries(Object.entries(props ?? {}).map(([
 
 // A prop of a component written in JavaScript: what Python hands it crosses as
 // Bryntime exports a value, a callable as a function, a list as its live view.
+// `style` as a plain copy, as on an element of the page: React freezes it.
 function jsProps(props) {
     const out = {};
 
     for (const [key, value] of Object.entries(renamed(props))) {
-        out[key] = value === NONE ? undefined : pyExport(value, `${key} — reacthon`);
+        if (value === NONE) out[key] = undefined;
+        else out[key] = key === 'style' ? plainData(value) : pyExport(value, `${key} — reacthon`);
     }
 
     return out;
