@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Form, Kinds, Card, Page, Toolbar, Tags } from './fixtures/Props.py';
+import { Form, Kinds, Card, Page, Toolbar, Tags, Button } from './fixtures/Props.py';
 import { render } from './render.js';
 
 describe('props', () => {
@@ -18,6 +18,12 @@ describe('props', () => {
         const page = await render(Kinds, { items: [1, 2], options: { size: 3 }, missing: undefined });
 
         expect(page.text()).toBe('list dict 3 None');
+    });
+
+    it('keeps the default of a prop a JavaScript parent hands as undefined, as React does', async () => {
+        const page = await render(Button, { variant: undefined, children: 'x' });
+
+        expect(page.html()).toBe('<button class="button plain">x</button>');
     });
 
     it('takes children, from Python and from JavaScript', async () => {

@@ -109,7 +109,9 @@ function component(fn) {
             const python = props[FROM_PYTHON] === true;
 
             for (const [key, value] of Object.entries(props)) {
-                if (key === FROM_PYTHON) continue;
+                // A prop JavaScript hands as undefined is absent, as React's
+                // destructuring reads it: the parameter keeps its default.
+                if (key === FROM_PYTHON || (!python && value === undefined)) continue;
                 keywords[key] = python || key === 'children' || isElement(value) ? (value ?? NONE) : pyData(value);
             }
 
