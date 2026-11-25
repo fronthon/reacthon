@@ -14,6 +14,7 @@ import {
     pyStr,
     pyType,
     isDict,
+    pyEntries,
     track,
     trackEach,
     unsubscribe,
@@ -186,12 +187,18 @@ function domProps(props) {
     return out;
 }
 
+// A component's `class` is its `className`, the name every React component
+// takes, written in Python or in JavaScript.
+const renamed = (props) => Object.fromEntries(Object.entries(props ?? {}).map(([key, value]) => [DOM_NAMES[key] ?? key, value]));
+
 // A prop of a component written in JavaScript: what Python hands it crosses as
 // Bryntime exports a value, a callable as a function, a list as its live view.
 function jsProps(props) {
     const out = {};
 
-    for (const [key, value] of Object.entries(props)) out[key] = value === NONE ? undefined : pyExport(value, `${key} — reacthon`);
+    for (const [key, value] of Object.entries(renamed(props))) {
+        out[key] = value === NONE ? undefined : pyExport(value, `${key} — reacthon`);
+    }
 
     return out;
 }
@@ -199,7 +206,7 @@ function jsProps(props) {
 function h(type, props, ...children) {
     const kids = children.map(child);
 
-    if (isPyFunction(type)) return React.createElement(component(type), { ...props, [FROM_PYTHON]: true }, ...kids);
+    if (isPyFunction(type)) return React.createElement(component(type), { ...renamed(props), [FROM_PYTHON]: true }, ...kids);
     if (typeof type === 'string') return React.createElement(type, props === null ? null : domProps(props), ...kids);
 
     // A context's value is Python's, read back by `use_context`.
@@ -214,11 +221,15 @@ function h(type, props, ...children) {
 
 const html = htm.bind(h);
 
-// Which interpolations stand inside a quoted attribute, `class="row {kind}"`,
-// where htm joins the text with JavaScript's `+`: there each is written as an
-// f-string writes it.
-function quotedSlots(strings) {
-    const quoted = [];
+const QUOTED = 1;
+const SPREAD = 2;
+
+// What each interpolation is to htm: inside a quoted attribute,
+// `class="row {kind}"`, where htm joins the text with JavaScript's `+` and each
+// is written as an f-string writes it; or spread on a tag, `<button ...{props}>`,
+// where htm assigns it over the props before it.
+function slotKinds(strings) {
+    const kinds = [];
     let inTag = false;
     let quote = null;
 
@@ -233,11 +244,15 @@ function quotedSlots(strings) {
                 inTag = true;
             }
         }
-        if (at < strings.length - 1) quoted.push(quote !== null);
+        if (at < strings.length - 1) kinds.push(quote !== null ? QUOTED : inTag && text.endsWith('...') ? SPREAD : null);
     });
 
-    return quoted;
+    return kinds;
 }
+
+// A dict spread on a tag is its items, each value Python's, as keyword
+// arguments are; None spreads nothing.
+const spread = (value) => (value === NONE || value == null ? {} : isDict(value) ? Object.fromEntries(pyEntries(value)) : value);
 
 // htm parses a template once and keeps it by the identity of its strings,
 // which Python builds again at each evaluation: the same text is handed the
@@ -249,7 +264,7 @@ function statics(strings) {
     let held = STRINGS.get(key);
 
     if (held === undefined) {
-        held = { strings: Object.freeze([...strings]), quoted: quotedSlots(strings) };
+        held = { strings: Object.freeze([...strings]), kinds: slotKinds(strings) };
         STRINGS.set(key, held);
     }
 
@@ -268,8 +283,10 @@ function interpolated(one) {
 }
 
 function element(template) {
-    const { strings, quoted } = statics(template.strings);
-    const values = template.interpolations.map((one, at) => (quoted[at] ? pyStr(interpolated(one)) : interpolated(one)));
+    const { strings, kinds } = statics(template.strings);
+    const values = template.interpolations.map((one, at) =>
+        kinds[at] === QUOTED ? pyStr(interpolated(one)) : kinds[at] === SPREAD ? spread(interpolated(one)) : interpolated(one)
+    );
     const made = html(strings, ...values);
 
     // A template that is only an interpolation, `t"{rows}"`, is handed back as

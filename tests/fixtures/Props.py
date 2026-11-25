@@ -24,3 +24,27 @@ def Card(title, children=None):
 
 def Page():
     return t'<{Card} title="Hello"><p>first</p><p>second</p></{Card}>'
+
+
+def Button(className="", variant="plain", children=None, **props):
+    return t'<button class={f"button {variant} {className}".strip()} ...{props}>{children}</button>'
+
+
+def Toolbar():
+    pressed = 0
+
+    def press(event):
+        pressed := pressed + 1
+
+    return t"""
+        <{Button} class="wide" variant="bold" id="go" title="go" onClick={press}>pressed {pressed}</{Button}>
+        <{Button} ...{None}>plain</{Button}>
+    """
+
+
+def Tag(className="", **props):
+    return t"<span class={className} ...{props} />"
+
+
+def Tags():
+    return t'<{Tag} class="x">hello <b>you</b> {[1, 2]}</{Tag}><{Tag}>{"alone"}</{Tag}>'
