@@ -103,6 +103,18 @@ describe('components', () => {
         expect(page.container.querySelector('.count').textContent).toBe('2');
     });
 
+    it("hands a library's context its value as a JavaScript component its props, None as undefined", async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.named').textContent).toBe('undefined');
+    });
+
+    it('hands a JavaScript component a Python function as children, which it calls with what it renders by', async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.meter').innerHTML).toBe('<b>40%</b>');
+    });
+
     it('hands a library that calls back a Python function the element of the t-string it returns', async () => {
         const page = await render(Shop);
 

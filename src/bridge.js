@@ -73,6 +73,9 @@ function child(value) {
     if (isTemplate(value)) return element(value);
     if (isElement(value)) return value;
     if (Array.isArray(value)) return value.map(child);
+    // A function as children, which the component calls with what it renders
+    // by, as React Aria's do: called as a Python callable JavaScript calls.
+    if (isPyFunction(value)) return pyHandler(value);
 
     // A Python iterable is children, as an array is in JSX; a mapping, bytes
     // and every other object show as `str()` shows them.
@@ -148,6 +151,9 @@ function component(fn) {
 
 const DOM_NAMES = { class: 'className', for: 'htmlFor' };
 const CONTEXT = Symbol.for('react.context');
+// The contexts `create_context` made, whose values are Python's; a library's
+// is handed its value as its other props are.
+const PY_CONTEXTS = new WeakSet();
 
 // `use_ref()`'s object, the class `reacthon.py` declares, read once the module
 // has run.
@@ -225,7 +231,7 @@ function h(type, props, ...children) {
     if (typeof type === 'string') return React.createElement(type, props === null ? null : domProps(props), ...kids);
 
     // A context's value is Python's, read back by `use_context`.
-    if (type?.$$typeof === CONTEXT) return React.createElement(type, props, ...kids);
+    if (type?.$$typeof === CONTEXT && PY_CONTEXTS.has(type)) return React.createElement(type, props, ...kids);
 
     // What an import from JavaScript made of a component is an adapter for
     // Python's calls; React is handed the component itself.
@@ -564,8 +570,10 @@ const hooks = {
 
     create_context(...args) {
         const [initial] = hookArgs('create_context', args, ['default']);
+        const made = React.createContext(initial ?? NONE);
 
-        return React.createContext(initial ?? NONE);
+        PY_CONTEXTS.add(made);
+        return made;
     },
 
     use_id() {

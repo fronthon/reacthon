@@ -1,7 +1,7 @@
 from reacthon import use_state
 from cart import total
 
-__js__ = {"./Badge.js": ["Badge"], "./Frame.js": ["Frame", "rendered"]}
+__js__ = {"./Badge.js": ["Badge"], "./Frame.js": ["Frame", "rendered", "Meter", "NameContext", "Named"]}
 
 ROWS = [{"x": 1}, {"x": 2}]
 
@@ -29,5 +29,7 @@ def Shop(prices=(10, 20)):
                 rows={ROWS}
             />
             <p class="called">{rendered(lambda props: t"<s>{props.n}</s>")}</p>
+            <{Meter}>{(lambda props: t"<b>{props.percentage}%</b>")}</{Meter}>
+            <{NameContext} value={None}><{Named} /></{NameContext}>
         </div>
     """

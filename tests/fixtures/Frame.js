@@ -1,4 +1,12 @@
-import { createElement } from 'react';
+import { createContext, createElement, useContext } from 'react';
+
+// A context of a library's, as React Aria's LabelContext, and what reads it.
+export const NameContext = createContext('none');
+export function Named() {
+    const name = useContext(NameContext);
+
+    return createElement('i', { className: 'named' }, name === undefined ? 'undefined' : String(name));
+}
 
 // A component written in JavaScript that takes elements as props, as a render
 // prop and a set of icons, and components to render its parts with; and rows,
@@ -19,3 +27,9 @@ export function Frame({ render, icons, components, rows }) {
 // A library that calls back a render function, as TanStack's table renders a
 // column's cell.
 export const rendered = (cell) => cell({ n: 1 });
+
+// A component that calls its children with what it renders by, as React
+// Aria's progress bar calls them with its percentage.
+export function Meter({ children }) {
+    return createElement('p', { className: 'meter' }, children({ percentage: 40 }));
+}
