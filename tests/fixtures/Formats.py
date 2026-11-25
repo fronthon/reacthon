@@ -10,12 +10,8 @@ SPECS = [
 ]
 
 
-def cell(value, spec):
-    return t"<li>{value:{spec}}</li>"
-
-
 def Formats(cases):
-    return t"<ul>{[cell(VALUES[at], SPECS[spec]) for at, spec in cases]}</ul>"
+    return t'<ul>{[t"<li>{VALUES[at]:{SPECS[spec]}}</li>" for at, spec in cases]}</ul>'
 
 
 def Converted():

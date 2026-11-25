@@ -20,18 +20,6 @@ const oracle = (() => {
 
 const texts = (page) => [...page.container.querySelectorAll('li')].map((li) => li.textContent);
 
-// What the engine writes otherwise today, each family by the number of its
-// entry in the list of things to do: the test fails when one of them comes out
-// right, so that its line here goes with it.
-const KNOWN = [
-    ['294, a float with a precision alone', (kind, spec) => kind === 'float' && spec === '.3'],
-    ['295, % of an infinity or a NaN', (kind, spec, named) => /inf|nan/.test(named) && spec.endsWith('%')],
-    ['296, a complex number', (kind) => kind === 'complex'],
-    ['297, a string filled with 0', (kind, spec) => kind === 'str' && spec === '08']
-];
-
-const known = (kind, spec, named) => KNOWN.find(([, applies]) => applies(kind, spec, named))?.[0];
-
 describe.skipIf(oracle === null)('a field written as CPython writes it', () => {
     it('formats each value by each specification CPython accepts for it', async () => {
         const page = await render(Formats, { cases: oracle.cases });
@@ -40,16 +28,11 @@ describe.skipIf(oracle === null)('a field written as CPython writes it', () => {
             value: oracle.named[value],
             spec: oracle.specs[spec],
             cpython: oracle.formatted[at],
-            reacthon: shown[at],
-            known: known(oracle.kinds[value], oracle.specs[spec], oracle.named[value])
+            reacthon: shown[at]
         }));
 
         expect(cases.length).toBeGreaterThan(300);
-        expect(cases.filter((one) => !one.known && one.cpython !== one.reacthon)).toEqual([]);
-
-        for (const [family] of KNOWN) {
-            expect(cases.some((one) => one.known === family && one.cpython !== one.reacthon), family).toBe(true);
-        }
+        expect(cases.filter((one) => one.cpython !== one.reacthon)).toEqual([]);
     });
 
     it('converts each value by !r, !s and !a', async () => {

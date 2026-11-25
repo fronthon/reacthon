@@ -23,10 +23,9 @@ for at, value in enumerate(VALUES):
 converted = [f"{value!r}|{value!s}|{value!a}" for value in VALUES]
 plain = ["" if value is None or isinstance(value, bool) else str(value) for value in VALUES if not isinstance(value, tuple)]
 
-kinds = [type(value).__name__ for value in VALUES]
 named = [repr(value) for value in VALUES]
 
 print(json.dumps({
     "cases": cases, "formatted": formatted, "converted": converted, "plain": plain,
-    "kinds": kinds, "named": named, "specs": SPECS,
+    "named": named, "specs": SPECS,
 }))
