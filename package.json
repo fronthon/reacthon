@@ -35,6 +35,9 @@
         "react": "^19.0.0"
     },
     "devDependencies": {
+        "brycomp": "file:../brycomp",
+        "bryntime": "file:../bryntime",
+        "bryvend": "file:../bryvend",
         "jsdom": "^29.1.1",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
