@@ -1,7 +1,9 @@
 from reacthon import use_state
 from cart import total
 
-__js__ = {"./Badge.js": ["Badge"], "./Frame.js": ["Frame"]}
+__js__ = {"./Badge.js": ["Badge"], "./Frame.js": ["Frame", "rendered"]}
+
+ROWS = [{"x": 1}, {"x": 2}]
 
 
 def Shop(prices=(10, 20)):
@@ -24,6 +26,8 @@ def Shop(prices=(10, 20)):
                 components={ {
                     "Label": Label,
                 } }
+                rows={ROWS}
             />
+            <p class="called">{rendered(lambda props: t"<s>{props.n}</s>")}</p>
         </div>
     """

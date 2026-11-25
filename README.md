@@ -235,9 +235,12 @@ def Rating():
     return t"<{Stars} value={stars} onRate={rate} />"
 ```
 
-A JavaScript component is rendered as itself, its props crossing as Bryntime
-hands Python's values to JavaScript: a callable as a function, a list as its
-live view. `js` is JavaScript's globals: `js.setInterval(tick, 1000)`.
+A JavaScript component is rendered as itself, its props crossing as React's
+data is: a callable as a function, a list, a tuple or a dict as a copy, the
+same while it holds the same, which a library may keep and freeze. A t-string
+is its element, there and wherever else JavaScript is handed one: the answer
+of a Python function a library calls back, a column's cell for TanStack's
+table. `js` is JavaScript's globals: `js.setInterval(tick, 1000)`.
 
 ## Demo
 
@@ -261,9 +264,6 @@ npm run dev
   render; `use_state(lambda: list(initial))` keeps it.
 - **No Fast Refresh**: an edited `.py` reloads the page, its state lost.
 - **No server rendering** yet.
-- **A JavaScript component wrapped in `React.memo`** is handed a list changed in
-  place as the same view, which `memo` takes for unchanged: hand it a copy,
-  `list(items)`.
 
 ## Licence
 

@@ -20,6 +20,7 @@ import {
     unsubscribe,
     pyGetattr,
     watchable,
+    host,
     NONE
 } from 'bryntime';
 
@@ -194,24 +195,24 @@ function domProps(props) {
 const renamed = (props) => Object.fromEntries(Object.entries(props ?? {}).map(([key, value]) => [DOM_NAMES[key] ?? key, value]));
 
 // A prop of a component written in JavaScript: what Python hands it crosses as
-// Bryntime exports a value, a callable as a function, a list as its live view.
-// `style` as a plain copy, as on an element of the page: React freezes it. A
+// Bryntime exports a value, a callable as a function; a list, a tuple or a dict
+// as a plain copy (`copied`), as React's props are data a library keeps and
+// may freeze, `style` as on an element of the page: React freezes it. A
 // t-string is its element, and a function named as a component, `Label`, a
-// React component, alone or among a dict's values, as a render prop, a set of
-// icons or the parts a library renders with are in JSX.
+// React component, alone or in a container, as a render prop, a set of icons
+// or the parts a library renders with are in JSX.
 const isPyComponent = (value) => isPyFunction(value) && /^[A-Z]/.test(value.$function_infos?.[1] ?? value.name);
+
+const propValue = (value, where) =>
+    isTemplate(value) ? element(value) : isPyComponent(value) ? component(value) : isContainer(value) ? copied(value) : pyExport(value, where);
 
 function jsProps(props) {
     const out = {};
-    const exported = (key, value) =>
-        isTemplate(value) ? element(value) : isPyComponent(value) ? component(value) : pyExport(value, `${key} — reacthon`);
 
     for (const [key, value] of Object.entries(renamed(props))) {
         if (value === NONE) out[key] = undefined;
         else if (key === 'style') out[key] = plainData(value);
-        else if (isDict(value) && pyEntries(value).some(([, one]) => isTemplate(one) || isPyComponent(one))) {
-            out[key] = Object.fromEntries(pyEntries(value).map(([name, one]) => [name, exported(`${key}.${name}`, one)]));
-        } else out[key] = exported(key, value);
+        else out[key] = propValue(value, `${key} — reacthon`);
     }
 
     return out;
@@ -307,6 +308,51 @@ function element(template) {
     // its value, which no `h` has made a child yet.
     return Array.isArray(made) ? React.createElement(React.Fragment, null, ...made.map(child)) : child(made);
 }
+
+// The copy of a container a prop holds, the last one while it holds the same,
+// so that a library that compares its data by identity sees the same rows.
+const COPIES = new WeakMap();
+
+const isContainer = (value) => $B.is_list(value) || $B.is_tuple(value) || isDict(value);
+const isPlainObject = (value) => value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
+
+function snapshot(value, seen = new Map()) {
+    if (seen.has(value)) return seen.get(value);
+
+    const one = (item) => (isContainer(item) ? snapshot(item, seen) : propValue(item, 'reacthon'));
+    const copy = isDict(value) ? {} : [];
+
+    seen.set(value, copy);
+    if (isDict(value)) for (const [key, item] of pyEntries(value)) copy[key] = one(item);
+    else for (const item of value) copy.push(one(item));
+    return copy;
+}
+
+function same(one, other, seen = new Set()) {
+    if (one === other) return true;
+    if (seen.has(one)) return true;
+    seen.add(one);
+    if (Array.isArray(one)) return Array.isArray(other) && one.length === other.length && one.every((item, at) => same(item, other[at], seen));
+    if (!isPlainObject(one) || !isPlainObject(other)) return false;
+
+    const keys = Object.keys(one);
+
+    return keys.length === Object.keys(other).length && keys.every((key) => Object.hasOwn(other, key) && same(one[key], other[key], seen));
+}
+
+function copied(value) {
+    const fresh = snapshot(value);
+    const held = COPIES.get(value);
+
+    if (held !== undefined && same(held, fresh)) return held;
+    COPIES.set(value, fresh);
+    return fresh;
+}
+
+// A template JavaScript is handed by any other door, an argument of a
+// library's function, the answer of a function it calls back, an item of a
+// list, is the element it renders, as at a prop: TanStack's cell.
+host.crossesAs = (value) => (isTemplate(value) ? element(value) : undefined);
 
 // A container held in a state is the same object after `items.append(x)`, and
 // React compares a dependency by identity: each change Python makes to it, or

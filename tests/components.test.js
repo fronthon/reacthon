@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TodoList } from './fixtures/Todo.py';
 import { Values } from './fixtures/Values.py';
 import { Shop } from './fixtures/Shop.py';
+import { Listing } from './fixtures/Listing.py';
 import { Clock, log } from './fixtures/Effects.py';
 import { render } from './render.js';
 
@@ -81,6 +82,26 @@ describe('components', () => {
         const page = await render(Shop);
 
         expect(page.container.querySelector('.frame em').outerHTML).toBe('<em class="x">part</em>');
+    });
+
+    it('hands a JavaScript component a list of dicts as a copy, which it may freeze', async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.frame .rows').textContent).toBe('1,2');
+    });
+
+    it('hands a JavaScript component in React.memo a list changed in place as another copy', async () => {
+        const page = await render(Listing);
+
+        expect(page.container.querySelector('.count').textContent).toBe('1');
+        await page.click('button');
+        expect(page.container.querySelector('.count').textContent).toBe('2');
+    });
+
+    it('hands a library that calls back a Python function the element of the t-string it returns', async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.called').innerHTML).toBe('<s>1</s>');
     });
 
     it('runs an effect with its cleanup, and recomputes a memo only when its dependency moves', async () => {
