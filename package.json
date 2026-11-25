@@ -4,6 +4,13 @@
     "description": "React components in Python",
     "author": "Florent Gallaire <fgallaire@gmail.com>",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/svelthon/reacthon.git"
+    },
+    "bugs": {
+        "url": "https://github.com/svelthon/reacthon/issues"
+    },
     "keywords": [
         "python",
         "react",
