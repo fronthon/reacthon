@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import { TodoList } from './fixtures/Todo.py';
 import { Values } from './fixtures/Values.py';
-import { Shop } from './fixtures/Shop.py';
+import { Shop, Badge as ShopBadge } from './fixtures/Shop.py';
 import { Listing } from './fixtures/Listing.py';
+import { Badge } from './fixtures/Badge.js';
 import { Clock, log } from './fixtures/Effects.py';
 import { render } from './render.js';
 
@@ -88,6 +89,10 @@ describe('components', () => {
         const page = await render(Shop);
 
         expect(page.container.querySelector('.frame .rows').textContent).toBe('1,2');
+    });
+
+    it("hands on what a module's __js__ imports, as Python a name it imports", () => {
+        expect(ShopBadge).toBe(Badge);
     });
 
     it('hands a JavaScript component in React.memo a list changed in place as another copy', async () => {

@@ -67,6 +67,9 @@ export function compile(written, source) {
     const declaration = declaredExports(HOST, root._ast, table, source, 0, compiled.src);
     const exported = (declaration === null ? topLevelNames(root._ast.body) : declaration.names)
         .filter((n) => !n.startsWith('_') && exportable(n) && !jsImported.includes(n) && n !== '__js__');
+    // What `__js__` imports is the module's too, as a name Python imports is:
+    // handed on to JavaScript as it is.
+    const handedOn = [...new Set(jsImported)].filter((n) => !n.startsWith('_') && exportable(n) && (declaration === null || declaration.names.includes(n)));
 
     // Appended after Brycomp's module, so its source map stays true line for
     // line: what follows maps to nothing, which is what it is.
@@ -79,6 +82,7 @@ export function compile(written, source) {
         ...[...new Set(jsImported)].map((n) => `__reacthon_ns.${n} = __reacthon_jsCall(${n});`),
         `init(__reacthon_ns);`,
         ...exported.map((n) => `export const ${n} = __reacthon_exported(__reacthon_ns, ${JSON.stringify(n)});`),
+        ...(handedOn.length ? [`export { ${handedOn.join(', ')} };`] : []),
         `export default __reacthon_ns;`
     ];
 
