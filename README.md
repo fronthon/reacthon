@@ -157,8 +157,13 @@ scope down.
 ## Hooks
 
 ```python
-from reacthon import use_state, use_effect, use_memo, use_ref
+from reacthon import use_effect, use_memo, use_ref
 ```
+
+A component's state is its names, above. The hooks are for the rest: an
+effect, a memo, a ref, a context. `use_state` is there as React has it, for
+code written after React's documentation and for a copy of a prop that a
+handler changes in place.
 
 | Python | React |
 |---|---|
