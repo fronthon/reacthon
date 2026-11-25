@@ -1,10 +1,10 @@
-<div align="center">
-
 # Reacthon
 
-**React components in Python.**
-
+<div align="center">
+    <img src="img/reacthon-512.png" alt="Reacthon" width="172"/>
 </div>
+
+**React components in Python.**
 
 ```python
 def Counter(start=0):
@@ -45,7 +45,7 @@ beside any component of npm. The browser receives only JavaScript.
 ## Install
 
 ```sh
-npm install reacthon react react-dom vite
+npm install reacthon
 ```
 
 ```js
@@ -250,8 +250,6 @@ npm run dev
 ```
 
 ## What is not done yet
-
-This is a prototype.
 
 - **A t-string is parsed when it first renders**, by
   [htm](https://github.com/developit/htm), and kept for the next renders; the
