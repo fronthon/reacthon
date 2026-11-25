@@ -2,7 +2,7 @@ import { act } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { Counter } from './fixtures/Counter.py';
-import { Counter as Plain, Basket, Nested, Shapes, Total, Removable, Parent, kept } from './fixtures/State.py';
+import { Counter as Plain, Basket, Nested, Shapes, Total, Removable, Parent, Room, kept, joined } from './fixtures/State.py';
 import { render } from './render.js';
 
 describe('use_state', () => {
@@ -97,5 +97,15 @@ describe('a name a nested function rebinds or changes is the state', () => {
         await page.click('.parent');
         await page.click('.child');
         expect(shown()).toBe('parent, parent, child');
+    });
+
+    it("reads in an effect's cleanup the state of its render, and the state of now after it", async () => {
+        joined.length = 0;
+        const page = await render(Room);
+
+        await page.click('button');
+        expect(page.text()).toBe('sport');
+        await page.unmount();
+        expect([...joined]).toEqual(['join general', 'leave general', 'join sport', 'leave sport']);
     });
 });

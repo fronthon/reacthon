@@ -1,4 +1,4 @@
-import { createContext, createElement as h, useContext, useEffect, useState } from 'react';
+import { createContext, createElement as h, useContext, useEffect, useLayoutEffect, useState } from 'react';
 
 // The same board as Twin2.py, written as React is written.
 export const log = [];
@@ -33,12 +33,20 @@ export function Board() {
     const [draft, setDraft] = useState('');
     const [theme, setTheme] = useState({ dark: false });
     const [count, setCount] = useState(0);
+    const [cleaned, setCleaned] = useState(0);
 
     useEffect(() => {
-        const seen = count;
-        log.push(`count ${seen}`);
-        return () => log.push(`uncount ${seen}`);
+        log.push(`count ${count} ${cleaned}`);
+        return () => {
+            log.push(`uncount ${count}`);
+            setCleaned(cleaned + 1);
+        };
     }, [count]);
+    useLayoutEffect(() => {
+        log.push(`layout ${made}`);
+        return () => log.push(`unlayout ${made}`);
+    }, [made]);
+    useEffect(() => () => log.push(`bye ${made} ${draft} ${count}`), []);
 
     const add = () => {
         setMade(made + 1);
@@ -72,6 +80,6 @@ export function Board() {
                 })
             )
         ),
-        h('p', null, `${count} ${rows.length}`)
+        h('p', null, `${count} ${rows.length} ${cleaned}`)
     );
 }

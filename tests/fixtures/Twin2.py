@@ -1,4 +1,4 @@
-from reacthon import use_effect, use_context, create_context
+from reacthon import use_effect, use_layout_effect, use_context, create_context
 
 log = []
 Theme = create_context(None)
@@ -41,6 +41,7 @@ def Board():
     draft = ""
     theme = {"dark": False}
     count = 0
+    cleaned = 0
 
     def add(event):
         made := made + 1
@@ -67,11 +68,26 @@ def Board():
         return lambda event: rows.remove(row)
 
     def watch():
-        seen = count
-        log.append(f"count {seen}")
-        return lambda: log.append(f"uncount {seen}")
+        log.append(f"count {count} {cleaned}")
+
+        def unwatch():
+            log.append(f"uncount {count}")
+            cleaned := cleaned + 1
+
+        return unwatch
 
     use_effect(watch, [count])
+
+    def place():
+        log.append(f"layout {made}")
+        return lambda: log.append(f"unlayout {made}")
+
+    use_layout_effect(place, [made])
+
+    def stay():
+        return lambda: log.append(f"bye {made} {draft} {count}")
+
+    use_effect(stay, [])
 
     return t"""
         <{Theme} value={theme}>
@@ -82,6 +98,6 @@ def Board():
             <button class="shade" onClick={shade}>shade</button>
             <button class="later" onClick={later}>later</button>
             <ul>{[t'<{Row} key={row["id"]} row={row} on_remove={remover(row)} />' for row in rows]}</ul>
-            <p>{count} {len(rows)}</p>
+            <p>{count} {len(rows)} {cleaned}</p>
         </{Theme}>
     """

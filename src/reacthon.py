@@ -55,6 +55,20 @@ class _Cells:
             object.__setattr__(self, name, value)
             self._wake()
 
+    def _as_seen(self, seen, run):
+        """Run an effect or its cleanup with the values its render saw of the
+        names written since, `seen`, as React's see them; what it writes is
+        kept."""
+        now = [self.__dict__[name] for name, _ in seen]
+        for name, value in seen:
+            object.__setattr__(self, name, value)
+        try:
+            return run()
+        finally:
+            for (name, value), current in zip(seen, now):
+                if self.__dict__.get(name, _MISSING) is value:
+                    object.__setattr__(self, name, current)
+
 
 class Ref:
     """What `use_ref()` hands back, the same object at every render: `current`

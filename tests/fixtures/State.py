@@ -1,6 +1,7 @@
-from reacthon import use_memo
+from reacthon import use_memo, use_effect
 
 kept = []
+joined = []
 
 
 def Counter(start=0):
@@ -102,3 +103,18 @@ def Parent():
         rows.append("parent")
 
     return t'<button class="parent" onClick={add}>add</button><{Child} rows={rows} /><p>{", ".join(rows)}</p>'
+
+
+def Room():
+    room = "general"
+
+    def connect():
+        joined.append(f"join {room}")
+        return lambda: joined.append(f"leave {room}")
+
+    use_effect(connect, [room])
+
+    def change(event):
+        room := "sport"
+
+    return t"<button onClick={change}>{room}</button>"

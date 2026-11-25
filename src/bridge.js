@@ -91,6 +91,11 @@ function child(value) {
 const COMPONENTS = new WeakMap();
 const FROM_PYTHON = '__reacthon_python';
 
+// The component rendering now: its cells, and what they hold once it has
+// returned, which its effects and their cleanups read, as React's read the
+// values of their render.
+let rendering = null;
+
 function component(fn) {
     let made = COMPONENTS.get(fn);
 
@@ -107,10 +112,25 @@ function component(fn) {
                 keywords[key] = python || key === 'children' || isElement(value) ? (value ?? NONE) : pyData(value);
             }
 
+            const outer = rendering;
+            const frame = { cells: [], effects: false, seen: [] };
+
+            rendering = frame;
             try {
-                return child(call(fn, [], keywords));
+                const made = call(fn, [], keywords);
+
+                if (frame.effects) {
+                    frame.seen = frame.cells.map(({ holder, names }) => ({
+                        holder,
+                        names,
+                        values: names.map((name) => pyGetattr(holder, name, NONE))
+                    }));
+                }
+                return child(made);
             } catch (error) {
                 throw pyError(error, where);
+            } finally {
+                rendering = outer;
             }
         };
 
@@ -331,6 +351,8 @@ function cells(names) {
 
     const own = held.current;
 
+    rendering?.cells.push({ holder: own.holder, names });
+
     // Read once the render has given each cell its value, the first render's
     // included: what a cell holds now is followed, what it held before is let
     // go.
@@ -370,7 +392,33 @@ function setterOf(set) {
     return made;
 }
 
-const cleanup = (result) => (pyCallable(result) ? () => void call(result) : undefined);
+// `run` with the cells as its render left them, then as they are now: through
+// Python only when a cell was written since.
+function asSeen(seen, run) {
+    return seen.reduceRight((inner, { holder, names, values }) => {
+        const changed = names.flatMap((name, at) =>
+            pyGetattr(holder, name, NONE) === values[at] ? [] : [$B.fast_tuple([name, values[at]])]
+        );
+
+        return changed.length === 0 ? inner : () => call(pyGetattr(holder, '_as_seen'), [$B.fast_tuple(changed), inner]);
+    }, run)();
+}
+
+// An effect and its cleanup read the state of the render that made them, as
+// React's do: `return lambda: chat.leave(room)` leaves the room the effect
+// joined. A handler reads the state of now.
+function effectOf(effect) {
+    const frame = rendering;
+
+    if (frame !== null) frame.effects = true;
+
+    return () => {
+        const seen = frame?.seen ?? [];
+        const result = asSeen(seen, () => call(effect));
+
+        return pyCallable(result) ? () => void asSeen(seen, () => call(result)) : undefined;
+    };
+}
 
 const hooks = {
     use_state(...args) {
@@ -384,14 +432,14 @@ const hooks = {
     use_effect(...args) {
         const [effect, deps] = hookArgs('use_effect', args, ['effect', 'dependencies']);
 
-        React.useEffect(() => cleanup(call(effect)), dependencies(deps));
+        React.useEffect(effectOf(effect), dependencies(deps));
         return NONE;
     },
 
     use_layout_effect(...args) {
         const [effect, deps] = hookArgs('use_layout_effect', args, ['effect', 'dependencies']);
 
-        React.useLayoutEffect(() => cleanup(call(effect)), dependencies(deps));
+        React.useLayoutEffect(effectOf(effect), dependencies(deps));
         return NONE;
     },
 

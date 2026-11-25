@@ -148,6 +148,10 @@ meant. Python's own `nonlocal` works as well.
   it: a timer started at the first render counts with
   `seconds := seconds + 1`, where React's `setSeconds(seconds + 1)` reads 0 for
   ever.
+- **An effect and its cleanup read the state of the render that made them**, as
+  React's do: `return lambda: chat.leave(room)` leaves the room the effect
+  joined, once `room` has moved on. A list changed in place since is the same
+  list, changed.
 - **A name bound from a prop keeps its first value**, as `useState(prop)` does:
   `count = start`.
 - **A function the render calls itself is part of the render**: what it
