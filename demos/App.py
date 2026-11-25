@@ -8,8 +8,7 @@ def Counter():
     count = 0
 
     def increment(event):
-        nonlocal count
-        count += 1
+        count := count + 1
 
     return t"<button onClick={increment}>clicked {count} times</button>"
 
@@ -19,9 +18,8 @@ def Temperature():
     fahrenheit = celsius * 9 / 5 + 32
 
     def change(event):
-        nonlocal celsius
         try:
-            celsius = float(event.target.value)
+            celsius := float(event.target.value)
         except ValueError:
             pass
 
@@ -38,8 +36,7 @@ def Rating():
     words = {1: "poor", 2: "fair", 3: "good", 4: "great", 5: "superb"}
 
     def rate(value):
-        nonlocal stars
-        stars = value
+        stars := value
 
     return t"""
         <{Stars} value={stars} onRate={rate} />
@@ -61,8 +58,7 @@ def App():
     seconds = 0
 
     def tick():
-        nonlocal seconds
-        seconds += 1
+        seconds := seconds + 1
 
     def start():
         timer = js.setInterval(tick, 1000)
@@ -76,7 +72,7 @@ def App():
         <main>
             <h1>Reacthon</h1>
             <p class="lead">React components in Python: compiled at build time, rendered by React itself.</p>
-            <{Card} title="State" note="a name a handler rebinds is the state: count = 0, then nonlocal count">
+            <{Card} title="State" note="a name a handler writes is the state: count = 0, then count := count + 1">
                 <{Counter} />
             </{Card}>
             <{Card} title="Lists changed in place" note="todos.append(...) renders again: no copy, no setter">
@@ -88,7 +84,7 @@ def App():
             <{Card} title="A JavaScript component" note="Stars.js, called with a Python callback">
                 <{Rating} />
             </{Card}>
-            <{Card} title="Effects and memos" note="a timer made at the first render reads the state of now: seconds += 1">
+            <{Card} title="Effects and memos" note="a timer made at the first render reads the state of now: seconds := seconds + 1">
                 <p>Open for {seconds} s. Primes under 60: {", ".join(str(p) for p in primes)}.</p>
             </{Card}>
         </main>

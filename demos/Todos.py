@@ -25,16 +25,14 @@ def Todos():
     field = use_ref()
 
     def edit(event):
-        nonlocal draft
-        draft = event.target.value
+        draft := event.target.value
 
     def add(event):
-        nonlocal draft
         event.preventDefault()
         text = draft.strip()
         if text:
             todos.append({"id": max((todo["id"] for todo in todos), default=0) + 1, "text": text, "done": False})
-            draft = ""
+            draft := ""
         field.current.focus()
 
     def remover(todo):

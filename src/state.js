@@ -59,6 +59,63 @@ function owner(table, parents, block, name) {
 
 const isComponent = (node) => is(node, 'FunctionDef') && /^[A-Z]/.test(node.name);
 
+// `draft := ""` on a statement of its own, the way a handler writes a name of
+// its component, where Python asks for parentheses: they are added as Python
+// reads them, `(draft := "")`, on the same lines. Where a statement starts and
+// ends is read by the engine's own tokenizer, which knows a string, a comment,
+// a `;` and a line a bracket left open. A text it cannot read is left as it is,
+// for the compile to say why.
+export function parenthesized(text, source) {
+    const engine = $B();
+    const names = Object.fromEntries(Object.entries(engine.py_tokens).map(([name, number]) => [number, name]));
+    const kind = (token) => names[token.type];
+    const ends = (token) => kind(token) === 'NEWLINE' || kind(token) === 'ENDMARKER' || (kind(token) === 'OP' && token.string === ';');
+    const quiet = (token) => ['NL', 'COMMENT', 'INDENT', 'DEDENT', 'ENCODING'].includes(kind(token));
+    let tokens;
+
+    try {
+        tokens = engine.tokenizer(text, source, 'file');
+    } catch {
+        return text;
+    }
+
+    const edits = [];
+    let starting = true;
+
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+
+        if (ends(token) || ['INDENT', 'DEDENT'].includes(kind(token))) {
+            starting = true;
+            continue;
+        }
+        if (quiet(token)) continue;
+
+        const next = tokens[i + 1];
+
+        if (starting && kind(token) === 'NAME' && next && kind(next) === 'OP' && next.string === ':=') {
+            let depth = 0;
+            let last = next;
+
+            for (let j = i + 2; j < tokens.length; j++) {
+                const one = tokens[j];
+
+                if (kind(one) === 'OP' && '([{'.includes(one.string)) depth++;
+                if (kind(one) === 'OP' && ')]}'.includes(one.string)) depth--;
+                if (depth <= 0 && ends(one)) break;
+                if (!quiet(one)) last = one;
+            }
+
+            edits.push({ from: at(token), to: at(token), text: '(' });
+            edits.push({ from: end(last), to: end(last), text: ')' });
+        }
+
+        starting = false;
+    }
+
+    return edits.length ? applied(text, edits) : text;
+}
+
 // The text of a component module, its state made cells: the same lines, so an
 // error and the source map keep the author's line. Null when no component
 // keeps a state.
@@ -83,10 +140,20 @@ export function withState(host, text, table, ast, source) {
         const nonlocals = [];
         const rebinds = [];
         const changes = [];
+        const walruses = [];
+        const augmented = [];
         const bindings = new Map();
         const returns = [];
         const defs = [];
         const called = new Set();
+
+        // A name the component binds, a prop included.
+        const ownName = (id) => {
+            const scope = scopeIn(own, id);
+
+            return scope === flags.LOCAL || scope === flags.CELL || param(id);
+        };
+        const blockOf = (scope, id) => owner(table, parents, table.blockOf(scope), id);
 
         walkScoped([component], (node, scope, line, parent) => {
             // The `def` itself, its decorators and its defaults, which the
@@ -96,7 +163,7 @@ export function withState(host, text, table, ast, source) {
             const nested = scope !== component;
 
             if (is(node, 'Name')) {
-                names.push({ node, scope });
+                names.push({ node, scope, parent });
                 if (!nested && !is(node.ctx, 'Load')) bindings.set(node.id, [...(bindings.get(node.id) ?? []), { node, parent }]);
                 return;
             }
@@ -115,6 +182,20 @@ export function withState(host, text, table, ast, source) {
                 for (const name of kept) rebinds.push({ name, node, scope });
                 if (kept.length) nonlocals.push({ node, kept });
                 return;
+            }
+
+            // `draft := value` in a nested function writes the component's
+            // `draft`, as `nonlocal draft` then `draft = value` would. Python
+            // binds it in the function, which then holds a name of its own
+            // that dies with the call: nothing it could mean is taken.
+            if (is(node, 'NamedExpr') && is(node.target, 'Name') && ownName(node.target.id)) {
+                const block = blockOf(scope, node.target.id);
+
+                if (block !== own) walruses.push({ name: node.target.id, node, scope, block });
+            }
+
+            if (is(node, 'AugAssign') && is(node.target, 'Name') && ownName(node.target.id) && blockOf(scope, node.target.id) !== own) {
+                augmented.push({ node, scope });
             }
 
             const targets = is(node, 'Assign') ? node.targets : is(node, 'AugAssign', 'AnnAssign') ? [node.target] : is(node, 'Delete') ? node.targets : [];
@@ -147,13 +228,7 @@ export function withState(host, text, table, ast, source) {
 
         // A value the component makes itself, `[]`, `{}`, `Point(0)`: it reads
         // no name of the component's, as an alias of a prop or a copy of one
-        // does.
-        const ownName = (id) => {
-            const scope = scopeIn(own, id);
-
-            return scope === flags.LOCAL || scope === flags.CELL || param(id);
-        };
-        // The names the value binds itself, a comprehension's targets, are
+        // does. The names the value binds itself, a comprehension's targets, are
         // not read from the component.
         const made = (value) => {
             const read = new Set();
@@ -166,6 +241,61 @@ export function withState(host, text, table, ast, source) {
             return ![...read].some((id) => !bound.has(id) && ownName(id));
         };
         const fresh = (name) => (bindings.get(name) ?? []).every((binding) => assignment(binding) && made(binding.parent.value));
+
+        // What a nested function reads and writes of a name it holds itself,
+        // apart from what `:=` writes.
+        const walrusTargets = new Set(walruses.map(({ node }) => node.target));
+        const reads = new Map();
+        const writes = new Map();
+        const noted = (map, block, id, node) => {
+            if (!map.has(block)) map.set(block, new Map());
+            map.get(block).set(id, [...(map.get(block).get(id) ?? []), node]);
+        };
+
+        for (const { node, scope, parent } of names) {
+            if (scope === component) continue;
+
+            const block = blockOf(scope, node.id);
+
+            if (block === own || block === null) continue;
+            if (is(node.ctx, 'Load')) noted(reads, block, node.id, node);
+            else if (!walrusTargets.has(node)) noted(writes, block, node.id, { node, parent });
+        }
+
+        const walrusBlocks = new Map();
+
+        for (const { name, node, scope, block } of walruses) {
+            if (param(name)) fail(`\`${name}\` is a prop, which the parent holds: copy it into a name of the component's own to change it`, node);
+            if (writes.get(block)?.has(name)) {
+                fail(`\`${name}\` is written with \`:=\`, the component's, and with \`=\`, a name of the function's own, in one function: rename the second`, node);
+            }
+            if (rendering(scope)) {
+                fail(`\`${name} := …\` writes the component's \`${name}\` after the render, and this function is called by the render: write \`nonlocal ${name}\` there`, node);
+            }
+            if (!walrusBlocks.has(block)) walrusBlocks.set(block, new Set());
+            walrusBlocks.get(block).add(name);
+            rebinds.push({ name, node, scope });
+        }
+
+        // `draft = ""` in a handler, on a name of the component's, binds a name
+        // of the handler's own that nothing reads, and `count += 1` alone one
+        // that has no value yet: the component's was meant.
+        for (const [block, written] of writes) {
+            for (const [id, found] of written) {
+                if (!ownName(id) || param(id) || walrusBlocks.get(block)?.has(id) || reads.get(block)?.has(id)) continue;
+                if (found.every(({ parent }) => is(parent, 'Assign'))) {
+                    fail(`\`${id} = …\` in a nested function binds a name of its own that nothing reads: \`${id} := …\` writes the component's`, found[0].node);
+                }
+            }
+        }
+        for (const { node, scope } of augmented) {
+            const id = node.target.id;
+            const found = writes.get(blockOf(scope, id))?.get(id) ?? [];
+
+            if (!param(id) && found.every(({ parent }) => is(parent, 'AugAssign'))) {
+                fail(`\`${id} ${opSign(node)}= …\` reads a name of the function's own that has no value yet: \`${id} := ${id} ${opSign(node)} …\` writes the component's`, node);
+            }
+        }
 
         const state = new Set();
 
@@ -217,7 +347,7 @@ export function withState(host, text, table, ast, source) {
 
         for (const { name, statement } of inits) {
             const lead = statement === head ? `${HOLDER} = ${CELLS}(${list}); ` : '';
-            const equals = afterEquals(lines, is(statement, 'Assign') ? statement.targets[0] : statement.annotation);
+            const equals = afterSign(lines, is(statement, 'Assign') ? statement.targets[0] : statement.annotation, '=');
 
             if (equals === null) fail(`\`${name} = …\` is written with its \`=\` on the line of its name`, statement);
             edits.push({ from: at(statement), to: equals, text: `${lead}${HOLDER}._has("${name}") or ${HOLDER}._first("${name}",` });
@@ -231,10 +361,21 @@ export function withState(host, text, table, ast, source) {
             edits.push({ from: at(node), to: end(node), text: rest.length ? `nonlocal ${rest.join(', ')}` : 'pass' });
         }
 
+        // `draft := value` becomes a write of the cell, which answers the
+        // value as `:=` does.
+        for (const { name, node } of walruses) {
+            const walrus = afterSign(lines, node.target, ':=');
+
+            if (walrus === null) fail(`\`${name} := …\` is written with its \`:=\` on the line of its name`, node);
+            edits.push({ from: at(node.target), to: walrus, text: `${HOLDER}._set("${name}",` });
+            edits.push({ from: end(node.value), to: end(node.value), text: ')' });
+        }
+
         const targets = new Set(inits.map(({ statement }) => (is(statement, 'Assign') ? statement.targets[0] : statement.target)));
+        const reached = (scope, id) => ours(scope, id) || walrusBlocks.get(blockOf(scope, id))?.has(id);
 
         for (const { node, scope } of names) {
-            if (state.has(node.id) && !targets.has(node) && ours(scope, node.id)) {
+            if (state.has(node.id) && !targets.has(node) && !walrusTargets.has(node) && reached(scope, node.id)) {
                 edits.push({ from: at(node), to: end(node), text: `${HOLDER}.${node.id}` });
             }
         }
@@ -258,14 +399,18 @@ const at = (node) => ({ line: node.lineno, column: node.col_offset });
 const end = (node) => ({ line: node.end_lineno, column: node.end_col_offset });
 const before = (one, other) => one.lineno < other.lineno || (one.lineno === other.lineno && one.col_offset < other.col_offset);
 
-// Just past the `=` that follows `node`, the target or the annotation of an
-// assignment, when it stands on the same line.
-function afterEquals(lines, node) {
+// Just past the sign, `=` or `:=`, that follows `node`, the target or the
+// annotation of an assignment, when it stands on the same line.
+function afterSign(lines, node, sign) {
     const rest = lines[node.end_lineno - 1].slice(node.end_col_offset);
-    const found = /^\s*=/.exec(rest);
 
-    return found === null ? null : { line: node.end_lineno, column: node.end_col_offset + found[0].length };
+    return rest.trimStart().startsWith(sign)
+        ? { line: node.end_lineno, column: node.end_col_offset + (rest.length - rest.trimStart().length) + sign.length }
+        : null;
 }
+
+const SIGNS = { Add: '+', Sub: '-', Mult: '*', Div: '/', FloorDiv: '//', Mod: '%', Pow: '**', BitOr: '|', BitAnd: '&', BitXor: '^', LShift: '<<', RShift: '>>', MatMult: '@' };
+const opSign = (node) => SIGNS[Object.keys(SIGNS).find((name) => is(node.op, name))] ?? '+';
 
 // The edits, each on one line, applied from the last: none moves another's
 // place, and none adds a line.

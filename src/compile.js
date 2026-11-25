@@ -4,7 +4,7 @@
 // components and whose other names JavaScript imports as they are.
 import { compile as compileCommon, declaredExports, jsImportLine, JS_RESERVED } from 'brycomp';
 
-import { withState, CELLS } from './state.js';
+import { withState, parenthesized, CELLS } from './state.js';
 
 const HOST = {
     name: 'reacthon',
@@ -42,8 +42,9 @@ function topLevelNames(body) {
     return [...names];
 }
 
-export function compile(text, source) {
+export function compile(written, source) {
     const named = pythonModuleName(source);
+    const text = parenthesized(written, source);
     const options = {
         name: source.replace(/\W/g, '_'),
         source,
@@ -51,7 +52,7 @@ export function compile(text, source) {
         // `js`, JavaScript's globals, which every module reads by that name,
         // and the hook a component's state is kept by.
         jsNames: ['js', CELLS],
-        sourceContent: text
+        sourceContent: written
     };
     let compiled = compileCommon(HOST, text, options);
 

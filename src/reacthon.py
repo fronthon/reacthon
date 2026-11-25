@@ -46,6 +46,10 @@ class _Cells:
     def _first(self, name, value):
         object.__setattr__(self, name, value)
 
+    def _set(self, name, value):
+        setattr(self, name, value)
+        return value
+
     def __setattr__(self, name, value):
         if self.__dict__.get(name, _MISSING) is not value:
             object.__setattr__(self, name, value)

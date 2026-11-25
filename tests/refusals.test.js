@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compile } from '../src/compile.js';
+import { parenthesized } from '../src/state.js';
 
 const refused = (text) => {
     try {
@@ -78,6 +79,72 @@ describe('a state the compiler cannot keep is refused at its line', () => {
 
     it('leaves a component with no state as it was written', () => {
         const text = `def Card(title):\n    shown = title.upper()\n    return t"<p>{shown}</p>"\n`;
+
+        expect(compile(text, 'tests/Plain.py').code).not.toMatch(/_reacthon_s/);
+    });
+});
+
+describe('`name := value` on a statement of its own', () => {
+    it('is parenthesised as Python reads it, and nothing else is', () => {
+        const text = [
+            'def f():',
+            '    a := 1; b := g(c := 2)  # a := 3',
+            '    s = """',
+            'x := 4',
+            '"""',
+            '    h(y :=',
+            '      5)',
+            '    rows := [',
+            '        6,',
+            '    ]',
+            '    d = {"k": 7}',
+            ''
+        ].join('\n');
+
+        expect(parenthesized(text, 'tests/Text.py')).toBe(
+            [
+                'def f():',
+                '    (a := 1); (b := g(c := 2))  # a := 3',
+                '    s = """',
+                'x := 4',
+                '"""',
+                '    h(y :=',
+                '      5)',
+                '    (rows := [',
+                '        6,',
+                '    ])',
+                '    d = {"k": 7}',
+                ''
+            ].join('\n')
+        );
+    });
+
+    it('refuses a name a handler binds with `=` and never reads', () => {
+        expect(refused(`def Card():\n    draft = ""\n    def clear(event):\n        draft = ""\n    return t"<p>{draft}</p>"\n`)).toBe(
+            "reacthon — `draft = …` in a nested function binds a name of its own that nothing reads: `draft := …` writes the component's (tests/Refused.py:4)"
+        );
+    });
+
+    it('refuses `+=` on a name a handler has given no value', () => {
+        expect(refused(`def Card():\n    count = 0\n    def up(event):\n        count += 1\n    return t"<p>{count}</p>"\n`)).toBe(
+            "reacthon — `count += …` reads a name of the function's own that has no value yet: `count := count + …` writes the component's (tests/Refused.py:4)"
+        );
+    });
+
+    it('refuses `:=` and `=` on one name in one function', () => {
+        expect(refused(`def Card():\n    count = 0\n    def up(event):\n        count := 1\n        count = 2\n        return count\n    return t"<p>{count}</p>"\n`)).toBe(
+            "reacthon — `count` is written with `:=`, the component's, and with `=`, a name of the function's own, in one function: rename the second (tests/Refused.py:4)"
+        );
+    });
+
+    it('refuses `:=` onto a prop', () => {
+        expect(refused(`def Card(title):\n    def rename(event):\n        title := "x"\n    return t"<p>{title}</p>"\n`)).toBe(
+            "reacthon — `title` is a prop, which the parent holds: copy it into a name of the component's own to change it (tests/Refused.py:3)"
+        );
+    });
+
+    it('leaves a handler its own names, given a value before they are changed or read', () => {
+        const text = `def Card():\n    count = 0\n    def show(event):\n        count = 5\n        count += 1\n        print(count)\n    return t"<p>{count}</p>"\n`;
 
         expect(compile(text, 'tests/Plain.py').code).not.toMatch(/_reacthon_s/);
     });
