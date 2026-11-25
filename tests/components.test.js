@@ -70,6 +70,19 @@ describe('components', () => {
         expect(page.container.querySelector('.picked').textContent).toBe('ITEMS');
     });
 
+    it('hands a JavaScript component a t-string as its element, alone or among a dict of them', async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.frame b').outerHTML).toBe('<b>!</b>');
+        expect(page.container.querySelector('.frame i').outerHTML).toBe('<i>ok</i>');
+    });
+
+    it('hands a JavaScript component a Python component, named as one, as a component it renders', async () => {
+        const page = await render(Shop);
+
+        expect(page.container.querySelector('.frame em').outerHTML).toBe('<em class="x">part</em>');
+    });
+
     it('runs an effect with its cleanup, and recomputes a memo only when its dependency moves', async () => {
         log.length = 0;
         const page = await render(Clock, { label: 'a' });

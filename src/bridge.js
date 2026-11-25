@@ -195,13 +195,23 @@ const renamed = (props) => Object.fromEntries(Object.entries(props ?? {}).map(([
 
 // A prop of a component written in JavaScript: what Python hands it crosses as
 // Bryntime exports a value, a callable as a function, a list as its live view.
-// `style` as a plain copy, as on an element of the page: React freezes it.
+// `style` as a plain copy, as on an element of the page: React freezes it. A
+// t-string is its element, and a function named as a component, `Label`, a
+// React component, alone or among a dict's values, as a render prop, a set of
+// icons or the parts a library renders with are in JSX.
+const isPyComponent = (value) => isPyFunction(value) && /^[A-Z]/.test(value.$function_infos?.[1] ?? value.name);
+
 function jsProps(props) {
     const out = {};
+    const exported = (key, value) =>
+        isTemplate(value) ? element(value) : isPyComponent(value) ? component(value) : pyExport(value, `${key} — reacthon`);
 
     for (const [key, value] of Object.entries(renamed(props))) {
         if (value === NONE) out[key] = undefined;
-        else out[key] = key === 'style' ? plainData(value) : pyExport(value, `${key} — reacthon`);
+        else if (key === 'style') out[key] = plainData(value);
+        else if (isDict(value) && pyEntries(value).some(([, one]) => isTemplate(one) || isPyComponent(one))) {
+            out[key] = Object.fromEntries(pyEntries(value).map(([name, one]) => [name, exported(`${key}.${name}`, one)]));
+        } else out[key] = exported(key, value);
     }
 
     return out;
