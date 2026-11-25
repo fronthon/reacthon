@@ -1,13 +1,20 @@
 // @vitest-environment node
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { parenthesized } from '../src/state.js';
 
-// CPython's standard library, where the machine has one: Python as it is
-// written, in which no `:=` stands alone on its statement.
-const LIBRARY = ['/usr/lib/python3.14', '/usr/local/lib/python3.14'].find((one) => existsSync(one));
+// The standard library of the machine's CPython, where it has one: Python as
+// it is written, in which no `:=` stands alone on its statement.
+const LIBRARY = (() => {
+    try {
+        return execFileSync('python3', ['-c', 'import sysconfig; print(sysconfig.get_path("stdlib"))'], { encoding: 'utf8' }).trim();
+    } catch {
+        return undefined;
+    }
+})();
 
 function* sources(folder) {
     for (const name of readdirSync(folder)) {
