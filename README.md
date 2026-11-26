@@ -24,6 +24,11 @@ is compiled to JavaScript at build time and handed to React itself: it is a
 React component, which React renders, reconciles and shows in its DevTools,
 beside any component of npm. The browser receives only JavaScript.
 
+Its components are [Reacthon UI](https://github.com/fronthon/reacthon-ui)'s:
+shadcn/ui's, written in Python, on each of its 24 presets, with its blocks,
+whole pages; and `npx reacthon-ui convert`, which writes a project's own TSX in
+Python.
+
 ## Why
 
 - **The real React.** [ReactPy](https://github.com/reactive-python/reactpy)
@@ -259,6 +264,11 @@ table. `js` is JavaScript's globals: `js.setInterval(tick, 1000)`.
 every door, a Python component's props and the hooks included: React Aria
 tells `slot={NULL}`, no slot of its context, from `slot={None}`, none given.
 A ref is `NULL` once its element leaves the page, as React sets it.
+
+An `async def` awaits JavaScript's promises, `await window.fetch(url)`, on
+Brython's loop, which a module imports as `from browser import aio`: a handler
+that is one runs when JavaScript calls it, and a coroutine an effect starts runs
+by `aio.run(load())`, as JavaScript runs an async function it calls.
 
 ## Demo
 

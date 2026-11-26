@@ -1,10 +1,23 @@
-import { createElement, Component } from 'react';
+import { act, createElement, Component } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { Focus, Remembered, Entries, Stepper, Themed, Broken, seen, drawn } from './fixtures/Hooks.py';
+import { Waits } from './fixtures/Waits.py';
 import { render } from './render.js';
 
+const turn = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
 describe('hooks', () => {
+    it('runs a coroutine an effect starts with aio.run, and an async handler, each awaiting a promise', async () => {
+        const page = await render(Waits);
+
+        await turn();
+        expect(page.text()).toBe('loaded none');
+        await page.click('button');
+        await turn();
+        expect(page.text()).toBe('loaded copied');
+    });
+
     it('keeps one ref across renders and sets the element it names', async () => {
         seen.length = 0;
         const page = await render(Focus);

@@ -39,6 +39,9 @@ export function Frame({ render, icons, components, rows }) {
 // column's cell.
 export const rendered = (cell) => cell({ n: 1 });
 
+// A promise of a library's, as `fetch` hands one, resolved at the next turn.
+export const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value)));
+
 // A component that calls its children with what it renders by, as React
 // Aria's progress bar calls them with its percentage.
 export function Meter({ children }) {
