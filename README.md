@@ -68,6 +68,13 @@ createRoot(document.getElementById('root')).render(createElement(App));
 A `.py` is an ordinary Python module. JavaScript imports its names: a function
 whose name is capitalised is a component, as React reads a capitalised tag.
 
+It imports the project's other `.py` by their names, beside it or in a folder
+of the plugin's `path`, `reacthon({ path: ["src/lib"] })`, and Brython's
+`browser` and `javascript`. Python's standard library does not ship: an import
+of any other module is refused at its line when the site is built. For `json`,
+[Brylters](https://github.com/svelthon/brylters) has `from_json` and `to_json`,
+which `__js__` imports (see JavaScript, below).
+
 ## Markup
 
 ```python

@@ -10,6 +10,9 @@ import { compile } from './compile.js';
 // `import reacthon` is the package's own module, wherever the importer stands.
 const OWN = { reacthon: fileURLToPath(new URL('./reacthon.py', import.meta.url)) };
 
+// The bridge's own module, which `reacthon.py` imports and no file holds.
+const BRIDGED = new Set(['_reacthon']);
+
 // Vite hands its optimizer the scan's plugins too, where a `.py` is no module
 // to read the imports of: the scan is told apart by its own plugin.
 const pythonScan = (scanned) => {
@@ -46,7 +49,10 @@ export function reacthon(options = {}) {
 
         if (held && held.stamp === stamp) return held.result;
 
-        const result = compile(readFileSync(file, 'utf8'), relative(process.cwd(), file));
+        // An import of a module the project has not is refused at its line,
+        // where it failed in the browser as the page mounted.
+        const resolves = (module) => (BRIDGED.has(module) || pythonFiles([module], dirname(file)).length > 0 ? 'file' : undefined);
+        const result = compile(readFileSync(file, 'utf8'), relative(process.cwd(), file), { resolves });
 
         compiled.set(file, { stamp, result });
         return result;

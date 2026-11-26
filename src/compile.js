@@ -12,7 +12,7 @@ const HOST = {
     runtime: { withNamespace: 'withNamespace', pyError: 'pyError' },
     reserved: { words: [], said: '' },
     instead: {
-        json: '`js.JSON.parse(text)` reads JSON and `js.JSON.stringify(value)` writes it',
+        json: '`from_json(text)` reads JSON and `to_json(value)` writes it, which `__js__ = {"brylters": ["from_json", "to_json"]}` imports from Brylters',
         random: '`js.Math.random()` draws a number',
         time: '`js.Date.now()` reads the clock'
     },
@@ -45,7 +45,10 @@ function topLevelNames(body) {
     return [...names];
 }
 
-export function compile(written, source) {
+// `resolves` answers `'file'` for a module the project has, which an import of
+// any other is refused for, at its line; without it, the imports are not
+// checked.
+export function compile(written, source, { resolves = null } = {}) {
     const named = pythonModuleName(source);
     const text = parenthesized(written, source);
     const options = {
@@ -55,6 +58,7 @@ export function compile(written, source) {
         // `js`, JavaScript's globals, which every module reads by that name,
         // and the hook a component's state is kept by.
         jsNames: ['js', CELLS],
+        resolves,
         sourceContent: written
     };
     let compiled = compileCommon(HOST, text, options);

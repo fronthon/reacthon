@@ -149,3 +149,25 @@ describe('`name := value` on a statement of its own', () => {
         expect(compile(text, 'tests/Plain.py').code).not.toMatch(/_reacthon_s/);
     });
 });
+
+describe('an import of a module the project has not is refused at its line', () => {
+    const imported = (text) => {
+        try {
+            compile(text, 'tests/Refused.py', { resolves: (module) => (module === 'cart' ? 'file' : undefined) });
+        } catch (error) {
+            return error.message;
+        }
+        return null;
+    };
+
+    it("says what stands in for json, Brylters' from_json and to_json", () => {
+        expect(imported('import cart\nimport json\n')).toBe(
+            "reacthon — `json` is not a module a component can import: Python's standard library does not ship, only `browser`, `javascript` and the project's own `.py` files do; " +
+                '`from_json(text)` reads JSON and `to_json(value)` writes it, which `__js__ = {"brylters": ["from_json", "to_json"]}` imports from Brylters (tests/Refused.py:2)'
+        );
+    });
+
+    it("leaves the project's modules, browser and javascript", () => {
+        expect(imported('import cart\nfrom browser import document\nimport javascript\n')).toBe(null);
+    });
+});
