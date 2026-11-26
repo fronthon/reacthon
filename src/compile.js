@@ -16,7 +16,10 @@ const HOST = {
         random: '`js.Math.random()` draws a number',
         time: '`js.Date.now()` reads the clock'
     },
-    pathOption: 'path'
+    pathOption: 'path',
+    // Bryntime's `d[k]`, `x in c`, `==` and the rest done inline, which the
+    // bridge's Bryntime always carries.
+    fast: '$bryntimeFast'
 };
 
 const pythonModuleName = (source) => source.split('/').pop().replace(/\.py$/, '');
