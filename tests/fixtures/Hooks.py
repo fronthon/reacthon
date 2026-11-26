@@ -1,6 +1,39 @@
-from reacthon import use_state, use_ref, use_reducer, use_context, create_context, use_effect, Ref
+from reacthon import use_state, use_ref, use_reducer, use_context, create_context, use_effect, memo, Ref
 
 seen = []
+drawn = []
+
+
+@memo
+def Entry(entry=None):
+    drawn.append(entry["name"])
+    return t'<li>{entry["name"]}</li>'
+
+
+def Named(entry=None):
+    drawn.append(entry["name"])
+    return t'<li>{entry["name"]}</li>'
+
+
+# Drawn again only when the name changes, whichever dict holds it.
+ByName = memo(Named, lambda previous, current: previous["entry"]["name"] == current["entry"]["name"])
+
+
+def Entries():
+    entries, set_entries = use_state([{"name": "a"}, {"name": "b"}])
+
+    def rename(event):
+        set_entries([entries[0], {"name": "c"}])
+
+    def copy(event):
+        set_entries([dict(entry) for entry in entries])
+
+    return t"""
+        <ul>{[t'<{Entry} key={at} entry={entry} />' for at, entry in enumerate(entries)]}</ul>
+        <ol>{[t'<{ByName} key={at} entry={entry} />' for at, entry in enumerate(entries)]}</ol>
+        <button class="rename" onClick={rename}>rename</button>
+        <button class="copy" onClick={copy}>copy</button>
+    """
 
 
 def Focus():
@@ -15,6 +48,17 @@ def Focus():
     use_effect(lambda: seen.append(repr(box)), [])
 
     return t'<input ref={box} /><button onClick={focus}>focus</button><p>{str(isinstance(box, Ref))} {renders.current}</p>'
+
+
+def Remembered():
+    last = use_ref("none")
+    count, set_count = use_state(0)
+
+    def press(event):
+        last.current = f"pressed at {count}"
+        set_count(count + 1)
+
+    return t'<button onClick={press}>{count}, {last.current}</button>'
 
 
 def reducer(state, action):

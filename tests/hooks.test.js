@@ -1,7 +1,7 @@
 import { createElement, Component } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Focus, Stepper, Themed, Broken, seen } from './fixtures/Hooks.py';
+import { Focus, Remembered, Entries, Stepper, Themed, Broken, seen, drawn } from './fixtures/Hooks.py';
 import { render } from './render.js';
 
 describe('hooks', () => {
@@ -15,6 +15,26 @@ describe('hooks', () => {
         await page.click('button');
         expect(document.activeElement).toBe(page.container.querySelector('input'));
         expect(seen[1]).toBe('INPUT');
+    });
+
+    it('calls a ref a handler writes at every render, as React finds its hooks', async () => {
+        const page = await render(Remembered);
+
+        await page.click('button');
+        await page.click('button');
+        expect(page.text()).toBe('2, pressed at 1');
+    });
+
+    it("skips a memo's render while its Python props are the same objects, or what are_equal says", async () => {
+        drawn.length = 0;
+        const page = await render(Entries);
+
+        expect(drawn).toEqual(['a', 'b', 'a', 'b']);
+        await page.click('.rename');
+        expect(drawn.slice(4)).toEqual(['c', 'c']);
+        await page.click('.copy');
+        expect(drawn.slice(6)).toEqual(['a', 'c']);
+        expect(page.container.querySelector('ol').textContent).toBe('ac');
     });
 
     it('reduces actions with a Python reducer', async () => {
@@ -65,6 +85,6 @@ describe('hooks', () => {
             console.error = quiet;
         }
 
-        expect(caught.message).toBe('IndexError: list index out of range (Broken() — tests/fixtures/Hooks.py:62)');
+        expect(caught.message).toBe('IndexError: list index out of range (Broken() — tests/fixtures/Hooks.py:106)');
     });
 });

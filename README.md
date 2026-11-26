@@ -184,9 +184,12 @@ handler changes in place.
 | `ref = use_ref(initial=None)` | `useRef`; a `Ref` whose `current` is what it holds |
 | `Theme = create_context(default)`, `use_context(Theme)` | `createContext`, `useContext`; `<{Theme} value={…}>` provides it |
 | `use_id()` | `useId` |
+| `@memo` on a component, or `memo(Component, are_equal=None)` | `memo`; its props compared by identity, Python's own objects, or by `are_equal(previous, next)` on their dicts |
 
 React's rules hold as they are: hooks at the top of a component, in the same
-order at every render.
+order at every render. A name a handler changes in place is a state, kept from
+render to render, unless a hook gave it: `box = use_ref()` is React's to keep,
+and its call React's to find at every render.
 
 ## A state changed in place
 

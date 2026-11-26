@@ -1,4 +1,4 @@
-"""React's hooks under their Python names, and what they hand back."""
+"""React's hooks and memo() under their Python names, and what they hand back."""
 
 from _reacthon import (
     use_state,
@@ -11,6 +11,7 @@ from _reacthon import (
     use_context,
     use_id,
     create_context,
+    memo,
 )
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "use_context",
     "use_id",
     "create_context",
+    "memo",
     "Ref",
 ]
 

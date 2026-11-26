@@ -15,6 +15,7 @@ import {
     pyType,
     isDict,
     pyEntries,
+    pyDict,
     track,
     trackEach,
     unsubscribe,
@@ -154,6 +155,8 @@ const CONTEXT = Symbol.for('react.context');
 // The contexts `create_context` made, whose values are Python's; a library's
 // is handed its value as its other props are.
 const PY_CONTEXTS = new WeakSet();
+// The components `memo` made of Python ones, whose props are Python's.
+const PY_MEMOS = new WeakSet();
 
 // `use_ref()`'s object, the class `reacthon.py` declares, read once the module
 // has run.
@@ -228,6 +231,7 @@ function h(type, props, ...children) {
     const kids = children.map(child);
 
     if (isPyFunction(type)) return React.createElement(component(type), { ...renamed(props), [FROM_PYTHON]: true }, ...kids);
+    if (PY_MEMOS.has(type)) return React.createElement(type, { ...renamed(props), [FROM_PYTHON]: true }, ...kids);
     if (typeof type === 'string') return React.createElement(type, props === null ? null : domProps(props), ...kids);
 
     // A context's value is Python's, read back by `use_context`.
@@ -578,6 +582,19 @@ const hooks = {
 
     use_id() {
         return React.useId();
+    },
+
+    // React's memo() of a Python component: its render skipped while its props
+    // are the last ones, each compared as React compares them, by identity, or
+    // by `are_equal(previous, next)` on their dicts.
+    memo(...args) {
+        const [fn, areEqual] = hookArgs('memo', args, ['component', 'are_equal']);
+        const props = (one) => pyDict(Object.entries(one).filter(([key]) => key !== FROM_PYTHON));
+        const compare = areEqual === undefined || areEqual === NONE ? undefined : (one, other) => _b_.bool.$factory(call(areEqual, [props(one), props(other)]));
+        const made = React.memo(component(fn), compare);
+
+        PY_MEMOS.add(made);
+        return made;
     }
 };
 
