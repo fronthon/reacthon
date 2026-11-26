@@ -6,10 +6,10 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/svelthon/reacthon.git"
+        "url": "git+https://github.com/fronthon/reacthon.git"
     },
     "bugs": {
-        "url": "https://github.com/svelthon/reacthon/issues"
+        "url": "https://github.com/fronthon/reacthon/issues"
     },
     "keywords": [
         "python",
