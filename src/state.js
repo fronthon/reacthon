@@ -26,6 +26,9 @@ const MUTATORS = new Set([
     'difference_update', 'intersection_update', 'symmetric_difference_update'
 ]);
 
+// A hook, React's or the author's, named as React names one: `use_ref`.
+const HOOK = /^use_/;
+
 const $B = () => globalThis.__BRYTHON__;
 const is = (node, ...names) => names.some((one) => node instanceof $B().ast[one]);
 
@@ -229,16 +232,19 @@ export function withState(host, text, table, ast, source) {
         // A value the component makes itself, `[]`, `{}`, `Point(0)`: it reads
         // no name of the component's, as an alias of a prop or a copy of one
         // does. The names the value binds itself, a comprehension's targets, are
-        // not read from the component.
+        // not read from the component. A hook's, `use_ref(None)`, is React's to
+        // keep, and its call React's to find at every render.
         const made = (value) => {
             const read = new Set();
             const bound = new Set();
+            let hooked = false;
 
             walkScoped([value], (node) => {
                 if (is(node, 'Name')) (is(node.ctx, 'Load') ? read : bound).add(node.id);
+                if (is(node, 'Call') && HOOK.test(is(node.func, 'Name') ? node.func.id : is(node.func, 'Attribute') ? node.func.attr : '')) hooked = true;
             });
 
-            return ![...read].some((id) => !bound.has(id) && ownName(id));
+            return !hooked && ![...read].some((id) => !bound.has(id) && ownName(id));
         };
         const fresh = (name) => (bindings.get(name) ?? []).every((binding) => assignment(binding) && made(binding.parent.value));
 
