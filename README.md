@@ -226,7 +226,8 @@ store its readers render again from.
 
 What a t-string hands a Python component is Python's own: the very list, the
 very setter. What a JavaScript parent hands it is copied in, an array as a list
-and an object as a dict; `children` and React's elements stay as they are. A
+and an object as a dict; React's elements stay as they are, and `children`
+too, but for an array of them, a list, as React holds the children of several. A
 library that clones a Python element is such a parent for what it adds:
 recharts' `payload` reaches its tooltip's Python content as a list of dicts.
 

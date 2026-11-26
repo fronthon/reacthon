@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Form, Kinds, Card, Page, Toolbar, Tags, Button, Nulls, Cloned } from './fixtures/Props.py';
+import { Form, Kinds, Card, Page, Counted, Counting, Toolbar, Tags, Button, Nulls, Cloned } from './fixtures/Props.py';
 import { render } from './render.js';
 
 describe('props', () => {
@@ -34,6 +34,12 @@ describe('props', () => {
         const javascript = await render(Card, { title: 'Hi', children: createElement('em', null, 'there') });
 
         expect(javascript.html()).toBe('<section><h2>Hi</h2><em>there</em></section>');
+    });
+
+    it('hands children of several, and an array of them, as a list', async () => {
+        expect((await render(Counting)).text()).toBe('list 2 JSObject');
+        expect((await render(Counted, { children: [] })).text()).toBe('list 0 -');
+        expect((await render(Counted, { children: [['a', 'b'], 'c'] })).text()).toBe('list 2 list');
     });
 
     it('hands a Python component class as className, and spreads the rest of its props on a tag', async () => {

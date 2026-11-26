@@ -29,6 +29,14 @@ def Page():
     return t'<{Card} title="Hello"><p>first</p><p>second</p></{Card}>'
 
 
+def Counted(children=None):
+    return t'<p>{type(children).__name__} {len(children)} {type(children[0]).__name__ if children else "-"}</p>'
+
+
+def Counting():
+    return t"<{Counted}><b>a</b><b>b</b></{Counted}>"
+
+
 def Button(className="", variant="plain", children=None, **props):
     return t'<button class={f"button {variant} {className}".strip()} ...{props}>{children}</button>'
 

@@ -112,6 +112,18 @@ const keySet = (keys) => {
     return set;
 };
 
+// Children, an array of them a list, as Bryntime copies an array everywhere
+// else, React's own of a tag of several children too: each element itself,
+// which a copy would make a dict.
+function pyChildren(value) {
+    if (!Array.isArray(value) || pyType(value) !== undefined) return orNone(value);
+
+    const list = _b_.list.$factory([]);
+
+    for (const one of value) list.push(pyChildren(one));
+    return list;
+}
+
 // The component rendering now: its cells, and what they hold once it has
 // returned, which its effects and their cleanups read, as React's read the
 // values of their render.
@@ -134,7 +146,7 @@ function component(fn) {
                 // A prop JavaScript hands as undefined is absent, as React's
                 // destructuring reads it: the parameter keeps its default.
                 if (key === FROM_PYTHON || (!python && value === undefined)) continue;
-                keywords[key] = python || key === 'children' || isElement(value) ? orNone(value) : pyData(value);
+                keywords[key] = python || isElement(value) ? orNone(value) : key === 'children' ? pyChildren(value) : pyData(value);
             }
 
             const outer = rendering;
