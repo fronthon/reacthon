@@ -1,7 +1,7 @@
 from javascript import NULL
 from reacthon import create_context, use_context, use_ref, use_state
 
-__js__ = {"./Frame.js": ["Slotted"]}
+__js__ = {"./Frame.js": ["Slotted", "Cloner"]}
 
 
 def Editor(value, on_change):
@@ -69,3 +69,11 @@ def Nulls():
         <{Passed} slot={NULL} /><{Passed} />
         <p>{str(state is NULL)} {str(box.current is NULL)} {str(use_context(Unset) is NULL)}</p>
     """
+
+
+def Received(rows=None, label=None):
+    return t'<p class="cloned">{type(rows).__name__} {type(rows[0]).__name__} {rows[0]["x"]} {label}</p>'
+
+
+def Cloned():
+    return t'<{Cloner}><{Received} label="mine" /></{Cloner}>'

@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext } from 'react';
+import { cloneElement, createContext, createElement, useContext } from 'react';
 
 // A context of a library's, as React Aria's LabelContext, and what reads it.
 export const NameContext = createContext('none');
@@ -11,6 +11,12 @@ export function Named() {
 // A component that tells null from undefined, as React Aria's `slot={null}`.
 export function Slotted({ slot }) {
     return createElement('b', { className: 'slotted' }, slot === null ? 'null' : String(slot));
+}
+
+// A component that clones the element it is handed with props of its own, as
+// recharts clones its tooltip's content with the payload.
+export function Cloner({ children }) {
+    return cloneElement(children, { rows: [{ x: 1 }] });
 }
 
 // A component written in JavaScript that takes elements as props, as a render

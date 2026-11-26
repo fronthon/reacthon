@@ -98,8 +98,19 @@ function child(value) {
 // it is Python's and stays itself, a list the very list and a setter the very
 // setter; what a JavaScript parent hands it is copied in, an array as a list
 // and an object as a dict, as Bryntime copies JavaScript's data into Python.
+// A library that clones the element is such a parent for what it adds,
+// recharts the `payload` of its tooltip's content: the element says which
+// props Python gave it, one string a memo compares as the same at each render.
 const COMPONENTS = new WeakMap();
 const FROM_PYTHON = '__reacthon_python';
+const pythonKeys = (given) => Object.keys(given).join('\n');
+const KEY_SETS = new Map();
+const keySet = (keys) => {
+    let set = KEY_SETS.get(keys);
+
+    if (set === undefined) KEY_SETS.set(keys, (set = new Set(keys.split('\n'))));
+    return set;
+};
 
 // The component rendering now: its cells, and what they hold once it has
 // returned, which its effects and their cleanups read, as React's read the
@@ -115,9 +126,11 @@ function component(fn) {
 
         made = function (props) {
             const keywords = {};
-            const python = props[FROM_PYTHON] === true;
+            const given = typeof props[FROM_PYTHON] === 'string' ? keySet(props[FROM_PYTHON]) : null;
 
             for (const [key, value] of Object.entries(props)) {
+                const python = given !== null && given.has(key);
+
                 // A prop JavaScript hands as undefined is absent, as React's
                 // destructuring reads it: the parameter keeps its default.
                 if (key === FROM_PYTHON || (!python && value === undefined)) continue;
@@ -234,8 +247,11 @@ function jsProps(props) {
 function h(type, props, ...children) {
     const kids = children.map(child);
 
-    if (isPyFunction(type)) return React.createElement(component(type), { ...renamed(props), [FROM_PYTHON]: true }, ...kids);
-    if (PY_MEMOS.has(type)) return React.createElement(type, { ...renamed(props), [FROM_PYTHON]: true }, ...kids);
+    if (isPyFunction(type) || PY_MEMOS.has(type)) {
+        const given = renamed(props);
+
+        return React.createElement(PY_MEMOS.has(type) ? type : component(type), { ...given, [FROM_PYTHON]: pythonKeys(given) }, ...kids);
+    }
     if (typeof type === 'string') return React.createElement(type, props === null ? null : domProps(props), ...kids);
 
     // A context's value is Python's, read back by `use_context`.

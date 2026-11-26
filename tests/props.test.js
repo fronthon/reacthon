@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Form, Kinds, Card, Page, Toolbar, Tags, Button, Nulls } from './fixtures/Props.py';
+import { Form, Kinds, Card, Page, Toolbar, Tags, Button, Nulls, Cloned } from './fixtures/Props.py';
 import { render } from './render.js';
 
 describe('props', () => {
@@ -57,5 +57,11 @@ describe('props', () => {
 
         expect([...page.container.querySelectorAll('.slotted')].map((one) => one.textContent)).toEqual(['null', 'undefined']);
         expect(page.container.querySelector('p').textContent).toBe('True True True');
+    });
+
+    it('copies in as Python data what a library adds cloning a Python element, as from a JavaScript parent', async () => {
+        const page = await render(Cloned);
+
+        expect(page.container.querySelector('.cloned').textContent).toBe('list dict 1 mine');
     });
 });
