@@ -1,4 +1,7 @@
-from reacthon import use_state
+from javascript import NULL
+from reacthon import create_context, use_context, use_ref, use_state
+
+__js__ = {"./Frame.js": ["Slotted"]}
 
 
 def Editor(value, on_change):
@@ -48,3 +51,21 @@ def Tag(className="", **props):
 
 def Tags():
     return t'<{Tag} class="x">hello <b>you</b> {[1, 2]}</{Tag}><{Tag}>{"alone"}</{Tag}>'
+
+
+Unset = create_context(NULL)
+
+
+# A Python component between, as shadcn's button between a library's.
+def Passed(slot=None):
+    return t"<{Slotted} slot={slot} />"
+
+
+def Nulls():
+    state = use_state(NULL)[0]
+    box = use_ref(NULL)
+
+    return t"""
+        <{Passed} slot={NULL} /><{Passed} />
+        <p>{str(state is NULL)} {str(box.current is NULL)} {str(use_context(Unset) is NULL)}</p>
+    """

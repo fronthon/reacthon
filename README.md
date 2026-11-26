@@ -252,6 +252,11 @@ is its element, there and wherever else JavaScript is handed one: the answer
 of a Python function a library calls back, a column's cell for TanStack's
 table. `js` is JavaScript's globals: `js.setInterval(tick, 1000)`.
 
+`None` is JavaScript's `undefined`, and `javascript.NULL` its `null`, at
+every door, a Python component's props and the hooks included: React Aria
+tells `slot={NULL}`, no slot of its context, from `slot={None}`, none given.
+A ref is `NULL` once its element leaves the page, as React sets it.
+
 ## Demo
 
 `demos/` is a page of Python components: state, a list changed in place, a

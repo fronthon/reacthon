@@ -35,6 +35,10 @@ const isTemplate = (value) => value !== null && typeof value === 'object' && val
 const isElement = (value) => value !== null && typeof value === 'object' && value.$$typeof !== undefined;
 const pyCallable = (value) => value !== null && value !== undefined && value !== NONE && _b_.callable(value) === true;
 
+// JavaScript's undefined is Python's None, and its null `javascript.NULL`,
+// which is null itself: kept, as a library tells `slot={null}` from no slot.
+const orNone = (value) => (value === undefined ? NONE : value);
+
 // A Python call from JavaScript, by keyword when names are given, as Python
 // calls `Counter(start=3)`.
 const call = (fn, positional = [], keywords = null) =>
@@ -117,7 +121,7 @@ function component(fn) {
                 // A prop JavaScript hands as undefined is absent, as React's
                 // destructuring reads it: the parameter keeps its default.
                 if (key === FROM_PYTHON || (!python && value === undefined)) continue;
-                keywords[key] = python || key === 'children' || isElement(value) ? (value ?? NONE) : pyData(value);
+                keywords[key] = python || key === 'children' || isElement(value) ? orNone(value) : pyData(value);
             }
 
             const outer = rendering;
@@ -163,16 +167,16 @@ const PY_MEMOS = new WeakSet();
 const refClass = () => $B.imported.reacthon?.Ref;
 const isRef = (value) => refClass() !== undefined && _b_.isinstance(value, refClass()) === true;
 
-// An element named by `ref={box}` is set on `box.current`, and None once it
-// leaves the page: one setter per ref, so React does not detach it at each
-// render.
+// An element named by `ref={box}` is set on `box.current`, and NULL once it
+// leaves the page, React's null: one setter per ref, so React does not detach
+// it at each render.
 const REF_SETTERS = new WeakMap();
 
 function refSetter(ref) {
     let made = REF_SETTERS.get(ref);
 
     if (made === undefined) {
-        made = (node) => void $B.$setattr1(ref, 'current', node ?? NONE);
+        made = (node) => void $B.$setattr1(ref, 'current', orNone(node));
         REF_SETTERS.set(ref, made);
     }
 
@@ -510,7 +514,7 @@ function effectOf(effect) {
 const hooks = {
     use_state(...args) {
         const [initial] = hookArgs('use_state', args, ['initial']);
-        const [value, set] = React.useState(() => (pyCallable(initial) ? call(initial) : initial ?? NONE));
+        const [value, set] = React.useState(() => (pyCallable(initial) ? call(initial) : orNone(initial)));
 
         useWatched(value);
         return $B.fast_tuple([value, setterOf(set)]);
@@ -546,7 +550,7 @@ const hooks = {
         const [reducer, initial, init] = hookArgs('use_reducer', args, ['reducer', 'initial', 'init']);
         const [state, dispatch] = React.useReducer(
             (current, action) => call(reducer, [current, action]),
-            initial ?? NONE,
+            orNone(initial),
             (given) => (init === undefined || init === NONE ? given : call(init, [given]))
         );
 
@@ -558,7 +562,7 @@ const hooks = {
         const [initial] = hookArgs('use_ref', args, ['initial']);
         const held = React.useRef(null);
 
-        if (held.current === null) held.current = call(refClass(), [initial ?? NONE]);
+        if (held.current === null) held.current = call(refClass(), [orNone(initial)]);
         return held.current;
     },
 
@@ -574,7 +578,7 @@ const hooks = {
 
     create_context(...args) {
         const [initial] = hookArgs('create_context', args, ['default']);
-        const made = React.createContext(initial ?? NONE);
+        const made = React.createContext(orNone(initial));
 
         PY_CONTEXTS.add(made);
         return made;

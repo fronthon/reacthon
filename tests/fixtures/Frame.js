@@ -8,6 +8,11 @@ export function Named() {
     return createElement('i', { className: 'named' }, name === undefined ? 'undefined' : String(name));
 }
 
+// A component that tells null from undefined, as React Aria's `slot={null}`.
+export function Slotted({ slot }) {
+    return createElement('b', { className: 'slotted' }, slot === null ? 'null' : String(slot));
+}
+
 // A component written in JavaScript that takes elements as props, as a render
 // prop and a set of icons, and components to render its parts with; and rows,
 // which it freezes, as recharts' store freezes the rows of its chart.

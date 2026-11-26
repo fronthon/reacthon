@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Form, Kinds, Card, Page, Toolbar, Tags, Button } from './fixtures/Props.py';
+import { Form, Kinds, Card, Page, Toolbar, Tags, Button, Nulls } from './fixtures/Props.py';
 import { render } from './render.js';
 
 describe('props', () => {
@@ -50,5 +50,12 @@ describe('props', () => {
         const page = await render(Tags);
 
         expect(page.html()).toBe('<span class="x">hello <b>you</b> 12</span><span class="">alone</span>');
+    });
+
+    it("keeps javascript.NULL JavaScript's null through a Python component and in a hook, None undefined", async () => {
+        const page = await render(Nulls);
+
+        expect([...page.container.querySelectorAll('.slotted')].map((one) => one.textContent)).toEqual(['null', 'undefined']);
+        expect(page.container.querySelector('p').textContent).toBe('True True True');
     });
 });
