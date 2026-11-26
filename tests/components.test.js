@@ -67,6 +67,7 @@ describe('components', () => {
         expect(page.container.querySelector('.badge').className).toBe('badge wide');
         expect(page.container.querySelector('.badge').style.color).toBe('red');
         expect(page.container.querySelector('.total').textContent).toBe('36.0');
+        expect(page.container.querySelector('.module').textContent).toBe('module 36.0');
 
         await page.click('.badge');
         expect(page.container.querySelector('.picked').textContent).toBe('ITEMS');
